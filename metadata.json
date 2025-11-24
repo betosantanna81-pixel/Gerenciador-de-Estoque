@@ -1,0 +1,5 @@
+{
+  "name": "GreenStock Control",
+  "description": "An inventory control application featuring dashboard visualization, batch tracking, and Excel import/export capabilities.",
+  "requestFramePermissions": []
+}
