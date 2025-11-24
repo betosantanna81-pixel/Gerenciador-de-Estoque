@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, RegistryEntity, ProductEntity } from '../types';
-import { Save, AlertCircle, UserPlus, PackagePlus } from 'lucide-react';
+import { InventoryItem, RegistryEntity, ProductEntity, ServiceEntity } from '../types';
+import { Save, AlertCircle, Briefcase } from 'lucide-react';
 
 interface AvailableBatch {
   batchId: string;
@@ -11,6 +11,7 @@ interface AvailableBatch {
   supplierCode: string;
   unitCost: number;
   remainingQuantity: number;
+  isService?: boolean;
 }
 
 interface EntryFormProps {
@@ -20,7 +21,8 @@ interface EntryFormProps {
   suppliers: RegistryEntity[];
   clients: RegistryEntity[];
   registeredProducts: ProductEntity[];
-  onNavigateToRegistry: (type: 'suppliers' | 'clients' | 'products') => void;
+  registeredServices: ServiceEntity[];
+  onNavigateToRegistry: (type: 'suppliers' | 'clients' | 'products' | 'services_registry') => void;
 }
 
 const EntryForm: React.FC<EntryFormProps> = ({ 
@@ -30,15 +32,19 @@ const EntryForm: React.FC<EntryFormProps> = ({
   suppliers, 
   clients,
   registeredProducts,
+  registeredServices,
   onNavigateToRegistry
 }) => {
   const [movementType, setMovementType] = useState<'entrada' | 'saída'>('entrada');
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [error, setError] = useState('');
   
+  // M.O. Flag
+  const [isService, setIsService] = useState(false);
+
   // Track selected IDs for dropdowns
   const [selectedEntityId, setSelectedEntityId] = useState('');
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedItemId, setSelectedItemId] = useState(''); // Product or Service ID
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -53,6 +59,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
   const [previewBatch, setPreviewBatch] = useState('---/---/---');
 
+  // Filter batches based on isService
+  const filteredAvailableBatches = availableBatches.filter(b => !!b.isService === isService);
+
   // Logic to handle Batch Selection for "Saída"
   useEffect(() => {
     if (movementType === 'saída' && selectedBatchId) {
@@ -60,14 +69,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
       if (batch) {
         setFormData(prev => ({
           ...prev,
-          // For Exit, we do NOT overwrite supplier with batch supplier.
-          // The user must enter the Client name in these fields via the entity selector.
           productName: batch.productName,
           productCode: batch.productCode,
-          unitCost: batch.unitCost, // Pre-fill with batch cost
+          unitCost: batch.unitCost, 
           quantity: 0
         }));
         setPreviewBatch(batch.batchId);
+        // Sync the service checkbox with the selected batch
+        setIsService(!!batch.isService);
       }
     } else if (movementType === 'entrada') {
       // Reset logic for entry handled elsewhere
@@ -78,6 +87,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
   useEffect(() => {
     if (movementType === 'entrada') {
       if (formData.supplierCode.length === 3 && formData.productCode.length === 3) {
+        // We calculate sequence based on supplier and general entries, mixing services and products is usually fine for batch ID uniqueness
+        // or we can separate. Assuming shared batch sequence logic.
         const supplierEntries = existingItems.filter(i => i.supplierCode === formData.supplierCode && !!i.entryDate);
         
         let maxSeq = 0;
@@ -99,10 +110,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
   const handleMovementTypeChange = (type: 'entrada' | 'saída') => {
     setMovementType(type);
+    resetFields();
+  };
+
+  const resetFields = () => {
     setError('');
     setSelectedBatchId('');
     setSelectedEntityId('');
-    setSelectedProductId('');
+    setSelectedItemId('');
     setFormData({
       date: new Date().toISOString().split('T')[0],
       supplier: '',
@@ -138,17 +153,23 @@ const EntryForm: React.FC<EntryFormProps> = ({
     }
   };
 
-  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleItemChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
-    setSelectedProductId(id);
+    setSelectedItemId(id);
 
-    const product = registeredProducts.find(item => item.id === id);
+    // Decide whether looking in Products or Services based on checkbox
+    let item: ProductEntity | ServiceEntity | undefined;
+    if (isService) {
+        item = registeredServices.find(s => s.id === id);
+    } else {
+        item = registeredProducts.find(p => p.id === id);
+    }
 
-    if (product) {
+    if (item) {
         setFormData(prev => ({
             ...prev,
-            productName: product.name,
-            productCode: product.code
+            productName: item.name,
+            productCode: item.code
         }));
     } else {
         setFormData(prev => ({
@@ -176,7 +197,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
     if (movementType === 'entrada') {
       if (!formData.productName || !formData.productCode) {
-         setError('Selecione um Produto cadastrado.');
+         setError(`Selecione um ${isService ? 'Tipo de Serviço' : 'Produto'} cadastrado.`);
          return;
       }
       if (formData.supplierCode.length !== 3 || formData.productCode.length !== 3) {
@@ -215,24 +236,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
       unitPrice: 0, 
       batchId: movementType === 'saída' ? selectedBatchId : '', 
       observations: formData.observations,
+      isService: isService // Pass the flag
     });
 
     // Reset form
-    setFormData(prev => ({
-      ...prev,
-      supplier: '',
-      supplierCode: '',
-      productName: '',
-      productCode: '',
-      quantity: 0,
-      unitCost: 0,
-      observations: '',
-    }));
-    setSelectedEntityId('');
-    setSelectedProductId('');
-    if(movementType === 'saída') {
-        setSelectedBatchId('');
-    }
+    resetFields();
     alert("Movimentação registrada com sucesso!");
   };
 
@@ -244,8 +252,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
   const activeEntityLabel = movementType === 'entrada' ? 'Fornecedor' : 'Cliente';
   const entityListEmpty = activeEntityList.length === 0;
   
-  // Determine product list state
-  const productListEmpty = registeredProducts.length === 0;
+  // Determine item list state
+  const itemList = isService ? registeredServices : registeredProducts;
+  const itemListEmpty = itemList.length === 0;
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -269,6 +278,32 @@ const EntryForm: React.FC<EntryFormProps> = ({
             </div>
           )}
 
+          {/* M.O. Checkbox */}
+          <div className="md:col-span-2 bg-blue-50 p-4 rounded-lg border border-blue-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="bg-blue-200 p-2 rounded-full text-blue-800">
+                    <Briefcase size={20} />
+                 </div>
+                 <div>
+                    <h3 className="text-blue-900 font-bold text-sm">Controle de M.O.</h3>
+                    <p className="text-xs text-blue-700">Esta movimentação refere-se a Mão de Obra?</p>
+                 </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={isService} 
+                    onChange={(e) => {
+                        setIsService(e.target.checked);
+                        setSelectedItemId(''); 
+                        setFormData(prev => ({...prev, productName: '', productCode: ''}));
+                    }}
+                    className="w-6 h-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="font-bold text-blue-900 text-sm">Entrada/Saída M.O.</span>
+              </label>
+          </div>
+
           {/* Dates & Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Data</label>
@@ -282,14 +317,16 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 className={inputClass}
              >
                 <option value="entrada">Entrada (Compras)</option>
-                <option value="saída">Saída (Vendas)</option>
+                <option value="saída">Saída (Vendas/Cobrança)</option>
              </select>
           </div>
 
           {/* Special Field for Exit: Select Batch */}
           {movementType === 'saída' && (
              <div className="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <label className="block text-sm font-bold text-yellow-800 mb-2">Baixar de (Selecionar Lote):</label>
+                <label className="block text-sm font-bold text-yellow-800 mb-2">
+                    {isService ? 'Baixar Estoque M.O. (Selecionar Lote):' : 'Baixar Estoque (Selecionar Lote):'}
+                </label>
                 <select 
                     value={selectedBatchId} 
                     onChange={(e) => setSelectedBatchId(e.target.value)}
@@ -297,9 +334,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     required
                 >
                     <option value="">-- Selecione um lote disponível --</option>
-                    {availableBatches.map(batch => (
+                    {filteredAvailableBatches.map(batch => (
                         <option key={batch.batchId} value={batch.batchId}>
-                            {batch.supplier} - {batch.batchId} - {batch.productName} (Disp: {batch.remainingQuantity} Kg)
+                            {batch.supplier} - {batch.batchId} - {batch.productName} (Disp: {batch.remainingQuantity})
                         </option>
                     ))}
                 </select>
@@ -362,39 +399,41 @@ const EntryForm: React.FC<EntryFormProps> = ({
             />
           </div>
 
-          {/* Product Info */}
+          {/* Product/Service Info */}
           <div className="md:col-span-2 border-t border-green-100 pt-4 mt-2">
              <h3 className="text-green-800 font-bold mb-4 flex items-center gap-2">
                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-               Dados do Produto
+               {isService ? 'Dados do Serviço (M.O.)' : 'Dados do Produto'}
              </h3>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Selecione o Produto</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                {isService ? 'Selecione o Tipo de Serviço' : 'Selecione o Produto'}
+            </label>
             {movementType === 'entrada' ? (
                 <>
                     <select 
-                        value={selectedProductId}
-                        onChange={handleProductChange}
+                        value={selectedItemId}
+                        onChange={handleItemChange}
                         className={inputClass}
                         required
-                        disabled={productListEmpty}
+                        disabled={itemListEmpty}
                     >
                         <option value="">-- Selecione na lista --</option>
-                        {registeredProducts.map(prod => (
-                            <option key={prod.id} value={prod.id}>
-                                {prod.code} - {prod.name}
+                        {itemList.map(item => (
+                            <option key={item.id} value={item.id}>
+                                {item.code} - {item.name}
                             </option>
                         ))}
                     </select>
-                    {productListEmpty && (
+                    {itemListEmpty && (
                         <div className="mt-2 text-xs text-red-600 flex items-center gap-1">
                             <AlertCircle size={12}/>
-                            <span>Nenhum produto cadastrado.</span>
+                            <span>Nenhum {isService ? 'serviço' : 'produto'} cadastrado.</span>
                             <button 
                                 type="button"
-                                onClick={() => onNavigateToRegistry('products')}
+                                onClick={() => onNavigateToRegistry(isService ? 'services_registry' : 'products')}
                                 className="font-bold underline hover:text-red-800 ml-1"
                             >
                                 Cadastrar Novo
@@ -415,7 +454,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Cód. Produto (3 dígitos)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                {isService ? 'Cód. Serviço (3 dígitos)' : 'Cód. Produto (3 dígitos)'}
+            </label>
             <input 
                 type="text" 
                 name="productCode" 
@@ -428,7 +469,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
           
           <div className="md:col-span-2 grid grid-cols-2 gap-4">
              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Quantidade (Kg)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Quantidade ({isService ? 'Horas/Un' : 'Kg'})</label>
                 <input 
                     type="number" 
                     name="quantity" 
@@ -471,9 +512,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
           <div className="md:col-span-2 mt-6">
             <button 
                 type="submit" 
-                disabled={entityListEmpty || (movementType === 'entrada' && productListEmpty)}
+                disabled={entityListEmpty || (movementType === 'entrada' && itemListEmpty)}
                 className={`w-full font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform hover:scale-[1.01]
-                    ${(entityListEmpty || (movementType === 'entrada' && productListEmpty)) ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-700 hover:bg-green-800 text-white'}
+                    ${(entityListEmpty || (movementType === 'entrada' && itemListEmpty)) ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-700 hover:bg-green-800 text-white'}
                 `}
             >
               <Save size={20} />

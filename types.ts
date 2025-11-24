@@ -15,6 +15,7 @@ export interface InventoryItem {
   unitPrice: number;
   
   observations?: string; // New field for notes
+  isService?: boolean; // Flag to identify M.O. (Mão de Obra) items
 }
 
 export interface ProductAnalysis {
@@ -57,6 +58,13 @@ export interface ProductEntity {
   code: string; // 3 digits
 }
 
+export interface ServiceEntity {
+  id: string;
+  name: string;
+  code: string; // 3 digits
+  defaultPrice?: number;
+}
+
 export interface ProductionOrder {
   id: string;
   date: string;
@@ -74,7 +82,7 @@ export interface ProductionOrder {
   loss: number;
 }
 
-export type ViewState = 'dashboard' | 'entry' | 'list' | 'stock' | 'settings' | 'suppliers' | 'clients' | 'products' | 'operations' | 'analysis' | 'processes' | 'production_orders';
+export type ViewState = 'dashboard' | 'entry' | 'list' | 'stock' | 'settings' | 'suppliers' | 'clients' | 'products' | 'operations' | 'analysis' | 'processes' | 'production_orders' | 'stock_mo' | 'billing_mo' | 'services_registry';
 
 export interface DashboardStats {
   totalStock: number;

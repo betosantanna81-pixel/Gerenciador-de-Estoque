@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { LayoutDashboard, List, Settings, ChevronDown, ChevronRight, FolderPlus, DownloadCloud, UploadCloud } from 'lucide-react';
+import { LayoutDashboard, List, Settings, ChevronDown, ChevronRight, FolderPlus, DownloadCloud, UploadCloud, Briefcase } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface SidebarProps {
@@ -13,12 +13,14 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImport }) => {
   const [openEstoque, setOpenEstoque] = useState(true);
   const [openCadastros, setOpenCadastros] = useState(false);
+  const [openServicos, setOpenServicos] = useState(false);
   const [openOutros, setOpenOutros] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to determine if a parent section should be highlighted
   const isEstoqueActive = currentView === 'entry' || currentView === 'list' || currentView === 'stock';
   const isCadastrosActive = ['suppliers', 'clients', 'products', 'operations'].includes(currentView);
+  const isServicosActive = ['stock_mo', 'billing_mo', 'services_registry'].includes(currentView);
   const isOutrosActive = ['analysis', 'processes', 'production_orders'].includes(currentView);
 
   const handleImportClick = () => {
@@ -26,20 +28,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
   };
 
   const MenuItem = ({ id, icon: Icon, label, active, onClick, disabled, isSubItem = false }: any) => {
-    // The visual style from the image:
-    // Active items have a white background that extends to the right, rounded on the left.
-    // Inactive items are simple text/icons on the dark background.
-    
     const baseClasses = "flex items-center gap-4 w-full transition-all duration-300 relative group";
     
-    // For active items (White tab style)
     if (active) {
       return (
         <button onClick={disabled ? undefined : onClick} className={`${baseClasses} pl-6 py-4`}>
-          {/* The white background container matching the body color */}
           <div className="absolute right-0 top-0 bottom-0 left-6 bg-gray-50 rounded-l-[30px] z-0" />
-          
-          {/* Icon and Text */}
           <div className="relative z-10 flex items-center gap-4 text-emerald-900 font-bold tracking-wide text-sm uppercase">
              <Icon size={20} strokeWidth={2.5} />
              <span>{label}</span>
@@ -48,7 +42,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
       );
     }
 
-    // For inactive items
     return (
       <button 
         onClick={disabled ? undefined : onClick} 
@@ -119,6 +112,28 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
                 <SubMenuItem label="Estoque Atual" active={currentView === 'stock'} onClick={() => setView('stock')} />
                 <SubMenuItem label="Movimentação" active={currentView === 'entry'} onClick={() => setView('entry')} />
                 <SubMenuItem label="Entrada/Saída" active={currentView === 'list'} onClick={() => setView('list')} />
+             </div>
+        </div>
+
+        {/* Accordion Group: Serviços */}
+        <div className="relative">
+             <button 
+                onClick={() => setOpenServicos(!openServicos)}
+                className={`flex items-center justify-between w-full px-8 py-4 text-emerald-100/70 hover:text-white transition-colors uppercase text-sm font-medium
+                    ${isServicosActive && !openServicos ? 'text-white font-bold' : ''}
+                `}
+             >
+                <div className="flex items-center gap-4">
+                    <Briefcase size={20} />
+                    <span>Serviços</span>
+                </div>
+                {openServicos ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+             </button>
+
+             <div className={`overflow-hidden transition-all duration-300 ${openServicos ? 'max-h-56 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <SubMenuItem label="Estoque de M.O" active={currentView === 'stock_mo'} onClick={() => setView('stock_mo')} />
+                <SubMenuItem label="Cobrança M.O" active={currentView === 'billing_mo'} onClick={() => setView('billing_mo')} />
+                <SubMenuItem label="Cadastro Tipo Serviços" active={currentView === 'services_registry'} onClick={() => setView('services_registry')} />
              </div>
         </div>
 
