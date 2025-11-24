@@ -19,7 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
   // Helper to determine if a parent section should be highlighted
   const isEstoqueActive = currentView === 'entry' || currentView === 'list' || currentView === 'stock';
   const isCadastrosActive = ['suppliers', 'clients', 'products', 'operations'].includes(currentView);
-  const isOutrosActive = ['analysis', 'processes'].includes(currentView);
+  const isOutrosActive = ['analysis', 'processes', 'production_orders'].includes(currentView);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -160,9 +160,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
                 {openOutros ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
              </button>
 
-             <div className={`overflow-hidden transition-all duration-300 ${openOutros ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+             <div className={`overflow-hidden transition-all duration-300 ${openOutros ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <SubMenuItem label="Análises" active={currentView === 'analysis'} onClick={() => setView('analysis')} />
-                <SubMenuItem label="Processos" active={currentView === 'processes'} onClick={() => setView('processes')} />
+                <SubMenuItem label="Novo Processo" active={currentView === 'processes'} onClick={() => setView('processes')} />
+                <SubMenuItem label="Ordens de Produção" active={currentView === 'production_orders'} onClick={() => setView('production_orders')} />
              </div>
         </div>
 

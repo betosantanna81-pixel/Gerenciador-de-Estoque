@@ -57,7 +57,24 @@ export interface ProductEntity {
   code: string; // 3 digits
 }
 
-export type ViewState = 'dashboard' | 'entry' | 'list' | 'stock' | 'settings' | 'suppliers' | 'clients' | 'products' | 'operations' | 'analysis' | 'processes';
+export interface ProductionOrder {
+  id: string;
+  date: string;
+  sourceBatchId: string;
+  sourceProduct: string;
+  processedQuantity: number;
+  supplier: string;
+  supplierCode: string;
+  outputs: {
+    productName: string;
+    productCode: string;
+    quantity: number;
+    newBatchId: string;
+  }[];
+  loss: number;
+}
+
+export type ViewState = 'dashboard' | 'entry' | 'list' | 'stock' | 'settings' | 'suppliers' | 'clients' | 'products' | 'operations' | 'analysis' | 'processes' | 'production_orders';
 
 export interface DashboardStats {
   totalStock: number;

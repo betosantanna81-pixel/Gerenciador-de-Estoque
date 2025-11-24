@@ -63,7 +63,8 @@ const Dashboard: React.FC<DashboardProps> = ({ items }) => {
       .slice(0, 7); // Top 7
   }, [items]);
 
-  const COLORS = ['#14532d', '#166534', '#15803d', '#16a34a', '#22c55e', '#4ade80', '#86efac'];
+  // Shades of Yellow/Gold for "Saldo por Produto"
+  const COLORS = ['#713f12', '#854d0e', '#a16207', '#ca8a04', '#eab308', '#facc15', '#fef08a'];
 
   return (
     <div className="p-8 bg-green-50/50 min-h-screen">
