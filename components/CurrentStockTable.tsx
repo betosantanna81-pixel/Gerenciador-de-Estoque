@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { InventoryItem, ProductAnalysis } from '../types';
-import { Search, PackageCheck, MessageSquareText, X, Filter, XCircle } from 'lucide-react';
+import { Search, PackageCheck, MessageSquareText, X, Filter, XCircle, Printer } from 'lucide-react';
 
 interface CurrentStockTableProps {
   items: InventoryItem[];
@@ -126,6 +126,10 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
     setSearchTerm('');
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   // Helper to format percentage/ppm
   const fmt = (val: number | undefined, isPpm = false) => {
     if (val === undefined || val === null) return '-';
@@ -133,17 +137,93 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
   };
 
   return (
-    <div className="p-8 h-screen flex flex-col relative">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-8 h-screen flex flex-col relative print:p-0 print:h-auto">
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          @page {
+            size: landscape;
+            margin: 5mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            background-color: white !important;
+          }
+          /* Hide Sidebar */
+          .fixed.left-0 {
+            display: none !important;
+          }
+          /* Reset Main Content Layout */
+          main {
+            margin-left: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
+          /* Hide Non-printable Elements */
+          .no-print {
+            display: none !important;
+          }
+          /* Remove Shadows/Borders for clean print */
+          .shadow-lg {
+            box-shadow: none !important;
+          }
+          .border {
+            border: none !important;
+          }
+          .rounded-xl, .rounded-lg {
+            border-radius: 0 !important;
+          }
+          /* Adjust Containers */
+          .h-screen {
+            height: auto !important;
+          }
+          .overflow-hidden {
+            overflow: visible !important;
+          }
+          .overflow-x-auto {
+            overflow: visible !important;
+          }
+          /* Table Styling */
+          table {
+            width: 100% !important;
+            border-collapse: collapse;
+            font-size: 10px;
+          }
+          thead th {
+            background-color: #064e3b !important;
+            color: white !important;
+            border: 1px solid #000;
+            padding: 4px !important;
+          }
+          tbody td {
+            border: 1px solid #ccc;
+            padding: 4px !important;
+          }
+          tbody tr:nth-child(even) {
+            background-color: #f0fdf4 !important;
+          }
+        }
+      `}</style>
+
+      <div className="flex justify-between items-center mb-6 print:mb-2">
         <h2 className="text-2xl font-bold text-green-900 flex items-center gap-3">
           <PackageCheck size={28} />
           Estoque Atual
         </h2>
+
+        <button 
+          onClick={handlePrint}
+          className="no-print flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all uppercase text-xs tracking-wider"
+        >
+          <Printer size={18} />
+          Imprimir
+        </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden print:border-none print:shadow-none print:overflow-visible">
         {/* Controls Bar */}
-        <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row items-start md:items-center gap-4 bg-white">
+        <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row items-start md:items-center gap-4 bg-white no-print">
           
           {/* Filter Controls */}
           <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-100">
@@ -203,9 +283,9 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
         </div>
 
         {/* Table Header */}
-        <div className="overflow-x-auto flex-1">
+        <div className="overflow-x-auto flex-1 print:overflow-visible">
           <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead className="bg-emerald-800 text-white sticky top-0 z-10">
+            <thead className="bg-emerald-800 text-white sticky top-0 z-10 print:static">
               <tr>
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider">Cód.</th>
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider">Lote</th>
@@ -239,14 +319,18 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                     <td className="p-3 text-sm text-gray-800 font-bold flex items-center gap-2">
                       {item.productName}
                       {item.supplier && (
-                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">
+                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 print:hidden">
                            {item.supplier}
                         </span>
+                      )}
+                      {item.supplier && (
+                         // Visible only on print to ensure supplier name is readable
+                         <span className="hidden print:inline text-[10px] text-gray-500 ml-1">({item.supplier})</span>
                       )}
                       {item.observations && (
                         <button 
                           onClick={() => setObsModal({ isOpen: true, text: item.observations, title: `Obs: ${item.productName} (${item.batchId})` })}
-                          className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 p-1 rounded-full transition-colors"
+                          className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 p-1 rounded-full transition-colors no-print"
                           title="Ver Observações"
                         >
                           <MessageSquareText size={16} />
@@ -283,7 +367,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
 
       {/* Observation Modal */}
       {obsModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 no-print">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-green-900 p-4 text-white flex justify-between items-center">
                <h3 className="font-bold text-sm uppercase tracking-wide">{obsModal.title}</h3>
