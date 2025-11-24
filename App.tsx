@@ -542,7 +542,6 @@ function App() {
           <InventoryTable 
             items={items} 
             onDelete={handleDeleteItem} 
-            onImport={handleImportItems} 
           />
         );
       case 'stock':

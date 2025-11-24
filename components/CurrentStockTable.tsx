@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { InventoryItem, ProductAnalysis } from '../types';
-import { Search, PackageCheck, MessageSquareText, X } from 'lucide-react';
+import { Search, PackageCheck, MessageSquareText, X, Filter, XCircle } from 'lucide-react';
 
 interface CurrentStockTableProps {
   items: InventoryItem[];
@@ -10,6 +10,9 @@ interface CurrentStockTableProps {
 
 const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [filterType, setFilterType] = useState<'none' | 'supplier' | 'product'>('none');
+  const [filterValue, setFilterValue] = useState('');
+
   const [obsModal, setObsModal] = useState<{isOpen: boolean; text: string; title: string}>({
     isOpen: false,
     text: '',
@@ -25,6 +28,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
       totalQuantity: number;
       unitCost: number;
       observations: string;
+      supplier: string; // Add supplier tracking for filtering
     }> = {};
 
     items.forEach(item => {
@@ -39,6 +43,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
           totalQuantity: 0,
           unitCost: 0,
           observations: '',
+          supplier: '', // Initialize empty
         };
       }
 
@@ -48,6 +53,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
       if (isEntry) {
         grouped[key].totalQuantity += item.quantity;
         grouped[key].unitCost = item.unitCost; // Entry defines the cost
+        grouped[key].supplier = item.supplier; // Capture supplier from entry
         // Capture observation from the entry movement
         if (item.observations) {
             grouped[key].observations = item.observations;
@@ -64,8 +70,6 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
          const estimatedValue = group.totalQuantity * group.unitCost;
 
          // Find analysis based on Batch ID first, fallback to Product Code if necessary (or just Batch ID as per requirement)
-         // Supporting legacy productCode based analysis if batchId match fails might be good, but prompt implies specific batch analysis.
-         // Let's prioritize batchId.
          const analysis = analyses.find(a => a.batchId === group.batchId) || analyses.find(a => !a.batchId && a.productCode === group.productCode);
 
          return {
@@ -77,11 +81,45 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
 
   }, [items, analyses]);
 
-  const filteredStock = stockData.filter(item => 
-    item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.productCode.includes(searchTerm) ||
-    item.batchId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Extract unique values for filters based on current stock
+  const uniqueSuppliers = useMemo(() => 
+    Array.from(new Set(stockData.map(i => i.supplier))).filter(Boolean).sort(), 
+  [stockData]);
+
+  const uniqueProducts = useMemo(() => 
+    Array.from(new Set(stockData.map(i => i.productName))).filter(Boolean).sort(), 
+  [stockData]);
+
+  const filteredStock = stockData.filter(item => {
+    // 1. Text Search Match
+    const matchesSearch = 
+      searchTerm === '' ||
+      item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.productCode.includes(searchTerm) ||
+      item.batchId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // 2. Category Filter Match
+    let matchesFilter = true;
+    if (filterType === 'supplier' && filterValue) {
+      matchesFilter = item.supplier === filterValue;
+    } else if (filterType === 'product' && filterValue) {
+      matchesFilter = item.productName === filterValue;
+    }
+
+    return matchesSearch && matchesFilter;
+  });
+
+  const handleFilterTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterType(e.target.value as any);
+    setFilterValue(''); // Reset value when type changes
+  };
+
+  const clearFilters = () => {
+    setFilterType('none');
+    setFilterValue('');
+    setSearchTerm('');
+  };
 
   // Helper to format percentage/ppm
   const fmt = (val: number, isPpm = false) => {
@@ -99,16 +137,64 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
       </div>
 
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden">
-        {/* Search Bar */}
-        <div className="p-4 border-b border-gray-200 flex items-center gap-3 bg-white">
-          <Search className="text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar por produto, código ou lote..." 
-            className="bg-green-50 outline-none flex-1 text-gray-700 p-2 rounded border border-green-100 placeholder-gray-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Controls Bar */}
+        <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row items-start md:items-center gap-4 bg-white">
+          
+          {/* Filter Controls */}
+          <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-100">
+              <div className="flex items-center gap-2 text-green-800 font-bold px-2">
+                <Filter size={18} />
+                <span className="text-sm uppercase tracking-wide">Filtrar:</span>
+              </div>
+              
+              <select 
+                value={filterType}
+                onChange={handleFilterTypeChange}
+                className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="none">Todos</option>
+                <option value="supplier">Por Fornecedor</option>
+                <option value="product">Por Produto</option>
+              </select>
+
+              {filterType !== 'none' && (
+                <select
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500 min-w-[200px]"
+                >
+                  <option value="">-- Selecione --</option>
+                  {filterType === 'supplier' && uniqueSuppliers.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                  {filterType === 'product' && uniqueProducts.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              )}
+
+              {(filterType !== 'none' || searchTerm) && (
+                <button 
+                  onClick={clearFilters}
+                  className="ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition"
+                  title="Limpar Filtros"
+                >
+                  <XCircle size={20} />
+                </button>
+              )}
+            </div>
+
+            {/* Search Bar */}
+            <div className="flex-1 w-full md:w-auto flex items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-200 px-4">
+              <Search className="text-gray-400" size={20} />
+              <input 
+                type="text" 
+                placeholder="Buscar por produto, código, lote ou fornecedor..." 
+                className="bg-transparent outline-none flex-1 text-gray-700 placeholder-gray-400"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
         </div>
 
         {/* Table Header */}
@@ -137,7 +223,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
             <tbody className="divide-y divide-gray-100">
               {filteredStock.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="p-8 text-center text-gray-400">Nenhum produto em estoque.</td>
+                  <td colSpan={14} className="p-8 text-center text-gray-400">Nenhum produto em estoque correspondente.</td>
                 </tr>
               ) : (
                 filteredStock.map((item) => (
@@ -146,6 +232,11 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                     <td className="p-3 text-sm font-mono font-bold text-green-700">{item.batchId}</td>
                     <td className="p-3 text-sm text-gray-800 font-bold flex items-center gap-2">
                       {item.productName}
+                      {item.supplier && (
+                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">
+                           {item.supplier}
+                        </span>
+                      )}
                       {item.observations && (
                         <button 
                           onClick={() => setObsModal({ isOpen: true, text: item.observations, title: `Obs: ${item.productName} (${item.batchId})` })}

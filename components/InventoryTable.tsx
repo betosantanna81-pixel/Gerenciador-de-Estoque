@@ -1,119 +1,160 @@
 
-import React, { useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { InventoryItem } from '../types';
-import { Download, Upload, Trash2, Search } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { Trash2, Search, Filter, XCircle } from 'lucide-react';
 
 interface InventoryTableProps {
   items: InventoryItem[];
   onDelete: (id: string) => void;
-  onImport: (items: InventoryItem[]) => void;
 }
 
-const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete, onImport }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [filterType, setFilterType] = useState<'none' | 'supplier' | 'product'>('none');
+  const [filterValue, setFilterValue] = useState('');
 
-  const handleExport = () => {
-    // Flatten data for nice Excel format with new requested order
-    const dataToExport = items.map(item => ({
-      'Lote': item.batchId,
-      'Produto': item.productName,
-      'Fornecedor': item.supplier,
-      'Cód. Fornecedor': item.supplierCode,
-      'Cód. Produto': item.productCode,
-      'Data Entrada': item.entryDate,
-      'Data Saída': item.exitDate,
-      'Quantidade': item.quantity,
-      'Subtotal': (item.quantity * item.unitCost),
-      'Observações': item.observations || '',
-      'ID': item.id,
-    }));
+  // Extract unique values for filters
+  const uniqueSuppliers = useMemo(() => 
+    Array.from(new Set(items.map(i => i.supplier))).filter(Boolean).sort(), 
+  [items]);
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Estoque");
-    XLSX.writeFile(wb, "Controle_Estoque_TerraAgro.xlsx");
+  const uniqueProducts = useMemo(() => 
+    Array.from(new Set(items.map(i => i.productName))).filter(Boolean).sort(), 
+  [items]);
+
+  // Filter Logic
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      // 1. Text Search Match
+      const matchesSearch = 
+        searchTerm === '' ||
+        item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.batchId.includes(searchTerm) ||
+        item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // 2. Category Filter Match
+      let matchesFilter = true;
+      if (filterType === 'supplier' && filterValue) {
+        matchesFilter = item.supplier === filterValue;
+      } else if (filterType === 'product' && filterValue) {
+        matchesFilter = item.productName === filterValue;
+      }
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [items, searchTerm, filterType, filterValue]);
+
+  // Calculate Totals
+  const totalQuantity = useMemo(() => 
+    filteredItems.reduce((acc, item) => acc + item.quantity, 0), 
+  [filteredItems]);
+
+  const totalValue = useMemo(() => 
+    filteredItems.reduce((acc, item) => acc + (item.quantity * item.unitCost), 0), 
+  [filteredItems]);
+
+  const handleFilterTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterType(e.target.value as any);
+    setFilterValue(''); // Reset value when type changes
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
+  const clearFilters = () => {
+    setFilterType('none');
+    setFilterValue('');
+    setSearchTerm('');
   };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const buffer = evt.target?.result;
-      // Using readAsArrayBuffer (read with type: array) is more robust for modern browsers than binary string
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws);
-      
-      // Map back to our structure
-      const mappedItems: InventoryItem[] = data.map((row: any) => ({
-        id: row['ID'] || crypto.randomUUID(),
-        batchId: row['Lote'] || '',
-        productName: row['Produto'] || '',
-        productCode: (row['Cód. Produto'] || '').toString().padStart(3, '0'),
-        supplier: row['Fornecedor'] || '',
-        supplierCode: (row['Cód. Fornecedor'] || '').toString().padStart(3, '0'),
-        quantity: Number(row['Quantidade'] || row['Qtd'] || 0),
-        unitCost: Number(row['Custo Unit'] || 0), 
-        unitPrice: 0, 
-        entryDate: row['Data Entrada'] || '',
-        exitDate: row['Data Saída'] || '',
-        observations: row['Observações'] || ''
-      }));
-
-      onImport(mappedItems);
-    };
-    reader.readAsArrayBuffer(file);
-    // Reset input
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const filteredItems = items.filter(item => 
-    item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.batchId.includes(searchTerm) ||
-    item.supplier.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="p-8 h-screen flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-green-900">Gerenciamento de Dados</h2>
-        <div className="flex gap-3">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            className="hidden" 
-            accept=".xlsx, .xls"
-          />
-          <button onClick={handleImportClick} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition">
-            <Upload size={18} /> Importar Excel
-          </button>
-          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 shadow-md transition">
-            <Download size={18} /> Exportar Excel
-          </button>
-        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden">
-        {/* Search Bar */}
-        <div className="p-4 border-b border-gray-200 flex items-center gap-3 bg-white">
-          <Search className="text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar por produto, lote ou fornecedor..." 
-            className="bg-green-50 outline-none flex-1 text-gray-700 p-2 rounded border border-green-100 placeholder-gray-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        
+        {/* Controls Section */}
+        <div className="p-4 border-b border-gray-200 bg-white flex flex-col gap-4">
+          
+          <div className="flex flex-col md:flex-row gap-4">
+            
+            {/* Filter Controls */}
+            <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-100">
+              <div className="flex items-center gap-2 text-green-800 font-bold px-2">
+                <Filter size={18} />
+                <span className="text-sm uppercase tracking-wide">Filtrar:</span>
+              </div>
+              
+              <select 
+                value={filterType}
+                onChange={handleFilterTypeChange}
+                className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="none">Todos</option>
+                <option value="supplier">Por Fornecedor/Cliente</option>
+                <option value="product">Por Produto</option>
+              </select>
+
+              {filterType !== 'none' && (
+                <select
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500 min-w-[200px]"
+                >
+                  <option value="">-- Selecione --</option>
+                  {filterType === 'supplier' && uniqueSuppliers.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                  {filterType === 'product' && uniqueProducts.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              )}
+
+              {(filterType !== 'none' || searchTerm) && (
+                <button 
+                  onClick={clearFilters}
+                  className="ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition"
+                  title="Limpar Filtros"
+                >
+                  <XCircle size={20} />
+                </button>
+              )}
+            </div>
+
+            {/* Search Bar */}
+            <div className="flex-1 flex items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-200 px-4">
+              <Search className="text-gray-400" size={20} />
+              <input 
+                type="text" 
+                placeholder="Busca rápida por produto, lote ou fornecedor..." 
+                className="bg-transparent outline-none flex-1 text-gray-700 placeholder-gray-400"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+          </div>
+
+          {/* Totals Summary */}
+          <div className="flex items-center gap-6 pt-2">
+             <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500 uppercase font-bold text-xs">Registros:</span>
+                <span className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">{filteredItems.length}</span>
+             </div>
+             <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500 uppercase font-bold text-xs">Quantidade Total:</span>
+                <span className="font-mono font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                  {totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+             </div>
+             <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500 uppercase font-bold text-xs">Valor Total:</span>
+                <span className="font-mono font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                  {totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+             </div>
+          </div>
+
         </div>
 
         {/* Table Header */}
@@ -123,8 +164,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete, onImpo
               <tr>
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider">Lote</th>
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider">Produto</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Fornecedor</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Cód. Forn.</th>
+                <th className="p-4 font-semibold text-xs uppercase tracking-wider">FORNECEDOR/CLIENTE</th>
+                <th className="p-4 font-semibold text-xs uppercase tracking-wider">CÓD. F/C</th>
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider">Cód. Prod.</th>
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider">Data Entrada</th>
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider">Data Saída</th>
