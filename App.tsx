@@ -295,16 +295,16 @@ function App() {
     })();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockData), "Estoque_Atual");
 
-    // Helper for transaction data - Updated to match requested column names EXACTLY
+    // Helper for transaction data - Updated to match the "Entrada/Saída" table structure
     const mapMovementWide = (i: InventoryItem) => ({
-        'Data Entrada': i.entryDate,
-        'Data Saida': i.exitDate,
-        'Fornecedor': i.supplier,
-        'codigo fornecedor': i.supplierCode,
+        'Lote': i.batchId,
         'Nome do Produto': i.productName,
-        'codigo do produto': i.productCode,
+        'Cód. Produto': i.productCode,
+        'Fornecedor': i.supplier,
+        'Cód. Fornecedor': i.supplierCode,
+        'Data Entrada': i.entryDate,
+        'Data Saída': i.exitDate,
         'Quantidade': i.quantity,
-        'Lote': i.batchId, 
         'Valor Unitário': i.unitCost,
         'Observações': i.observations,
         'ID': i.id
@@ -364,7 +364,7 @@ function App() {
             'Produto': match ? match.productName : '-',
             'Código': a.productCode,
             'Cu (%)': a.cu, 'Zn (%)': a.zn, 'Mn (%)': a.mn, 'B (%)': a.b,
-            'Pb (%)': a.pb, 'Fe (%)': (a as any).fe || 0, 'Cd (ppm)': a.cd, 
+            'Pb (%)': a.pb, 'Fe (%)': a.fe || 0, 'Cd (ppm)': a.cd, 
             'H2O (%)': a.h2o, '#35 (%)': a.mesh35, 'Ret. (%)': a.ret
          };
     });
