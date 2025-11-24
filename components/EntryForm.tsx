@@ -79,7 +79,17 @@ const EntryForm: React.FC<EntryFormProps> = ({
     if (movementType === 'entrada') {
       if (formData.supplierCode.length === 3 && formData.productCode.length === 3) {
         const supplierEntries = existingItems.filter(i => i.supplierCode === formData.supplierCode && !!i.entryDate);
-        const nextSequence = (supplierEntries.length + 1).toString().padStart(3, '0');
+        
+        let maxSeq = 0;
+        supplierEntries.forEach(item => {
+             const parts = item.batchId.split('/');
+             if (parts.length === 3) {
+                 const seq = parseInt(parts[1], 10);
+                 if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+             }
+        });
+        
+        const nextSequence = (maxSeq + 1).toString().padStart(3, '0');
         setPreviewBatch(`${formData.supplierCode}/${nextSequence}/${formData.productCode}`);
       } else {
         setPreviewBatch('Requer códigos de 3 dígitos');
