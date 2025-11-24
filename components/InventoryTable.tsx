@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { InventoryItem } from '../types';
 import { Download, Upload, Trash2, Search } from 'lucide-react';
@@ -45,8 +46,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete, onImpo
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
+      const buffer = evt.target?.result;
+      // Using readAsArrayBuffer (read with type: array) is more robust for modern browsers than binary string
+      const wb = XLSX.read(buffer, { type: 'array' });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
       const data = XLSX.utils.sheet_to_json(ws);
@@ -60,7 +62,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete, onImpo
         supplier: row['Fornecedor'] || '',
         supplierCode: (row['Cód. Fornecedor'] || '').toString().padStart(3, '0'),
         quantity: Number(row['Quantidade'] || row['Qtd'] || 0),
-        unitCost: Number(row['Custo Unit'] || 0), // Note: You might need to add Custo Unit to import if it's missing from new export structure or calculate
+        unitCost: Number(row['Custo Unit'] || 0), 
         unitPrice: 0, 
         entryDate: row['Data Entrada'] || '',
         exitDate: row['Data Saída'] || '',
@@ -69,7 +71,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete, onImpo
 
       onImport(mappedItems);
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };

@@ -201,11 +201,15 @@ function App() {
   const parseImportDate = (val: any): string => {
     if (!val) return '';
     if (val instanceof Date) {
-        // Adjust for timezone if necessary, but ISO string split is usually sufficient for date-only
         return val.toISOString().split('T')[0];
     }
     if (typeof val === 'string') {
-        // Assume YYYY-MM-DD or handle in input if necessary
+        // Handle common formats if needed, usually YYYY-MM-DD or DD/MM/YYYY
+        if(val.includes('/')) {
+            const parts = val.split('/');
+            // Assume DD/MM/YYYY
+            if(parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
         return val.split('T')[0];
     }
     return '';
@@ -215,7 +219,7 @@ function App() {
   const handleExportAll = () => {
     const wb = XLSX.utils.book_new();
 
-    // 1. Estoque_Atual
+    // 1. Estoque_Atual (Snapshot)
     const stockData = (() => {
         const grouped: any = {};
         items.forEach(item => {
@@ -270,28 +274,25 @@ function App() {
     })();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockData), "Estoque_Atual");
 
-    // Helper for transaction data (Wide Format as requested)
+    // Helper for transaction data - Updated to match requested column names EXACTLY
     const mapMovementWide = (i: InventoryItem) => ({
-        'ID': i.id,
-        'Lote': i.batchId,
+        'Data Entrada': i.entryDate,
+        'Data Saida': i.exitDate,
         'Fornecedor': i.supplier,
         'codigo fornecedor': i.supplierCode,
         'Nome do Produto': i.productName,
         'codigo do produto': i.productCode,
         'Quantidade': i.quantity,
+        'Lote': i.batchId, 
         'Valor Unitário': i.unitCost,
-        'Data Entrada': i.entryDate,
-        'Data Saida': i.exitDate,
-        'Observações': i.observations
+        'Observações': i.observations,
+        'ID': i.id
     });
 
     // 2. Movimentacoes (Full Log in wide format)
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(items.map(mapMovementWide)), "Movimentacoes");
 
-    // 3. Entrada_Saida (Mirror of Movimentacoes for convenience)
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(items.map(mapMovementWide)), "Entrada_Saida");
-
-    // 4. Fornecedores (Explicit Registry Data)
+    // 3. Fornecedores (Explicit Registry Data)
     const suppliersExport = suppliers.map(s => ({
         'Cod. Fornecedor': s.code,
         'Nome Fornecedor': s.name,
@@ -309,7 +310,7 @@ function App() {
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(suppliersExport), "Fornecedores");
 
-    // 5. Clientes (Explicit Registry Data)
+    // 4. Clientes (Explicit Registry Data)
     const clientsExport = clients.map(c => ({
         'Cod. Cliente': c.code,
         'Nome Cliente': c.name,
@@ -327,21 +328,14 @@ function App() {
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientsExport), "Clientes");
 
-    // 6. Produtos (Explicit Registry Data)
+    // 5. Produtos (Explicit Registry Data)
     const productsExport = registeredProducts.map(p => ({
         'Nome Produto': p.name,
         'Codigo Produto': p.code
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productsExport), "Produtos");
 
-    // 7. Operacoes (Static definitions)
-    const operations = [
-        { 'Tipo': 'Entrada', 'Descrição': 'Recebimento de mercadoria e adição ao estoque' },
-        { 'Tipo': 'Saída', 'Descrição': 'Expedição de mercadoria e baixa no estoque' }
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(operations), "Operacoes");
-
-    // 8. Analises
+    // 6. Analises
     const analysesExport = analyses.map(a => {
          const match = items.find(i => i.batchId === a.batchId || i.productCode === a.productCode);
          return {
@@ -354,11 +348,8 @@ function App() {
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysesExport), "Analises");
 
-    // 9. Processos (Placeholder)
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ Info: 'Módulo em desenvolvimento' }]), "Processos");
-
     // Save File
-    XLSX.writeFile(wb, "banco_dados_gerenciador.xlsx");
+    XLSX.writeFile(wb, "banco_dados_controle_estoque.xlsx");
   };
 
   const handleGlobalImport = (file: File) => {
@@ -373,9 +364,16 @@ function App() {
         // Use read (array buffer) which is more robust than binary string in modern environments
         const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
 
+        // Case-insensitive sheet finder
+        const findSheet = (names: string[]) => {
+            const found = wb.SheetNames.find(n => names.some(name => name.toLowerCase() === n.toLowerCase()));
+            return found ? wb.Sheets[found] : null;
+        }
+
         // 1. Import Fornecedores
-        if (wb.Sheets["Fornecedores"]) {
-           const raw = XLSX.utils.sheet_to_json(wb.Sheets["Fornecedores"]);
+        const sheetSuppliers = findSheet(["Fornecedores"]);
+        if (sheetSuppliers) {
+           const raw = XLSX.utils.sheet_to_json(sheetSuppliers);
            const mapped: RegistryEntity[] = raw.map((r: any) => ({
                id: crypto.randomUUID(),
                code: (r['Cod. Fornecedor'] || '').toString().padStart(3, '0'),
@@ -398,8 +396,9 @@ function App() {
         }
 
         // 2. Import Clientes
-        if (wb.Sheets["Clientes"]) {
-           const raw = XLSX.utils.sheet_to_json(wb.Sheets["Clientes"]);
+        const sheetClients = findSheet(["Clientes"]);
+        if (sheetClients) {
+           const raw = XLSX.utils.sheet_to_json(sheetClients);
            const mapped: RegistryEntity[] = raw.map((r: any) => ({
                id: crypto.randomUUID(),
                code: (r['Cod. Cliente'] || '').toString().padStart(3, '0'),
@@ -422,8 +421,9 @@ function App() {
         }
 
         // 3. Import Produtos
-        if (wb.Sheets["Produtos"]) {
-           const raw = XLSX.utils.sheet_to_json(wb.Sheets["Produtos"]);
+        const sheetProducts = findSheet(["Produtos"]);
+        if (sheetProducts) {
+           const raw = XLSX.utils.sheet_to_json(sheetProducts);
            const mapped: ProductEntity[] = raw.map((r: any) => ({
                id: crypto.randomUUID(),
                name: r['Nome Produto'] || '',
@@ -432,20 +432,22 @@ function App() {
            setRegisteredProducts(mapped);
         }
 
-        // 4. Import Movimentacoes (Items) - Supports "Movimentacoes" or "Entrada_Saida"
-        const movesSheetName = wb.SheetNames.find(n => n === "Movimentacoes" || n === "Entrada_Saida");
+        // 4. Import Movimentacoes (Items)
+        // Strictly look for Movimentacoes sheet. We do NOT load items from Estoque_Atual to avoid duplication/sync issues.
+        // The Stock view will be CALCULATED from these movements.
+        const movesSheet = findSheet(["Movimentacoes", "Entrada_Saida", "Movimentações"]);
         let loadedItems: InventoryItem[] = [];
 
-        if (movesSheetName && wb.Sheets[movesSheetName]) {
-           const raw = XLSX.utils.sheet_to_json(wb.Sheets[movesSheetName]);
+        if (movesSheet) {
+           const raw = XLSX.utils.sheet_to_json(movesSheet);
            loadedItems = raw.map((r: any) => ({
                id: r['ID'] || crypto.randomUUID(),
                batchId: r['Lote'] || '',
                productName: r['Nome do Produto'] || r['Produto'] || '',
-               productCode: (r['codigo do produto'] || r['Código do Produto'] || '').toString().padStart(3, '0'),
+               productCode: (r['codigo do produto'] || r['Código do Produto'] || r['Cód. Produto'] || '').toString().padStart(3, '0'),
                supplier: r['Fornecedor'] || r['Parceiro'] || '',
                supplierCode: (r['codigo fornecedor'] || r['Cód. Fornecedor'] || '').toString().padStart(3, '0'),
-               quantity: Number(r['Quantidade'] || 0),
+               quantity: Number(r['Quantidade'] || r['quanntidade'] || r['Qtd'] || 0),
                unitCost: Number(r['Valor Unitário'] || r['Valor Unit.'] || 0),
                unitPrice: 0,
                entryDate: parseImportDate(r['Data Entrada']),
@@ -453,12 +455,15 @@ function App() {
                observations: r['Observações'] || ''
            }));
            setItems(loadedItems);
+        } else {
+            console.warn("Aba de Movimentações não encontrada. O estoque pode ficar zerado se não houver histórico.");
         }
 
-        // 5. Import Analises
+        // 5. Import Analises (can come from 'Analises' or 'Estoque_Atual')
         let loadedAnalyses: ProductAnalysis[] = [];
-        if (wb.Sheets["Analises"]) {
-           const raw = XLSX.utils.sheet_to_json(wb.Sheets["Analises"]);
+        const analysisSheet = findSheet(["Analises"]);
+        if (analysisSheet) {
+           const raw = XLSX.utils.sheet_to_json(analysisSheet);
            loadedAnalyses = raw.map((r: any) => ({
                batchId: r['Lote'] === '-' ? '' : (r['Lote'] || ''),
                productCode: (r['Código'] || '').toString().padStart(3, '0'),
@@ -475,11 +480,11 @@ function App() {
            setAnalyses(loadedAnalyses);
         }
 
-        // 6. Import Data from Estoque_Atual (Overrides Analises and acts as fallback for Items)
-        if (wb.Sheets["Estoque_Atual"]) {
-             const raw = XLSX.utils.sheet_to_json(wb.Sheets["Estoque_Atual"]);
+        // 6. Update Analyses from Estoque_Atual if present (User might edit analysis there)
+        const currentStockSheet = findSheet(["Estoque_Atual", "Estoque Atual", "Dado Atual"]);
+        if (currentStockSheet) {
+             const raw = XLSX.utils.sheet_to_json(currentStockSheet);
              
-             // Update Analyses from this sheet as it's likely where users edit chemical data
              const stockAnalyses: ProductAnalysis[] = raw.map((r: any) => ({
                  batchId: r['Lote'] === '-' ? '' : (r['Lote'] || ''),
                  productCode: (r['Código'] || '').toString().padStart(3, '0'),
@@ -494,39 +499,24 @@ function App() {
                  ret: Number(r['Ret. (%)'] || 0)
              }));
              
-             // If valid analyses found in Estoque_Atual, they take precedence
+             // If valid analyses found in Estoque_Atual, they take precedence or merge
              if (stockAnalyses.length > 0) {
                  setAnalyses(stockAnalyses);
              }
-
-             // Fallback for Items if Movimentacoes is missing
-             if (loadedItems.length === 0) {
-                 const stockItems: InventoryItem[] = raw.map((r: any) => ({
-                    id: crypto.randomUUID(),
-                    batchId: r['Lote'] || '',
-                    productName: r['Produto'] || '',
-                    productCode: (r['Código'] || '').toString().padStart(3, '0'),
-                    supplier: 'Importado',
-                    supplierCode: '000',
-                    quantity: Number(r['Saldo (Kg)'] || 0),
-                    unitCost: 0,
-                    unitPrice: 0,
-                    entryDate: new Date().toISOString().split('T')[0],
-                    exitDate: '',
-                    observations: r['Observações'] || ''
-                 })).filter((i: InventoryItem) => i.quantity > 0);
-                 
-                 setItems(stockItems);
-             }
         }
 
-        alert('Importação do Banco de Dados concluída!');
+        if (loadedItems.length === 0) {
+            alert('Aviso: Nenhuma movimentação foi encontrada nas abas "Movimentacoes" ou "Entrada_Saida". O estoque foi recalculado e pode estar vazio.');
+        } else {
+            alert(`Sucesso! Carregados ${loadedItems.length} registros de movimentação.`);
+        }
+
       } catch(error) {
         console.error("Erro na importação:", error);
         alert("Erro ao importar o arquivo. Verifique o formato.");
       }
     };
-    // Use readAsArrayBuffer instead of readAsBinaryString for better compatibility
+    // Use readAsArrayBuffer for maximum compatibility
     reader.readAsArrayBuffer(file);
   };
 
