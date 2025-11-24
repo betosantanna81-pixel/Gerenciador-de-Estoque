@@ -8,9 +8,10 @@ interface EntityRegistryProps {
   data: RegistryEntity[];
   onSave: (entity: RegistryEntity) => void;
   onDelete: (id: string) => void;
+  onReplicate?: (entity: RegistryEntity) => void;
 }
 
-const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onDelete }) => {
+const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onDelete, onReplicate }) => {
   const isSupplier = type === 'supplier';
   const title = isSupplier ? 'Cadastro de Fornecedores' : 'Cadastro de Clientes';
   const labelCode = isSupplier ? 'Cód. Fornecedor' : 'Cód. Cliente';
@@ -20,6 +21,8 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
     isOpen: false,
     existingEntity: null
   });
+
+  const [addToClients, setAddToClients] = useState(false);
 
   const [formData, setFormData] = useState<Omit<RegistryEntity, 'id'>>({
     code: '',
@@ -82,7 +85,7 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
       return;
     }
     
-    // Check for duplicates
+    // Check for duplicates in the CURRENT list
     const existing = data.find(d => d.code === formData.code);
     if (existing) {
         setDuplicateModal({
@@ -97,8 +100,18 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
         ...formData,
         id: crypto.randomUUID()
     });
+
+    // Replicate to Clients if requested
+    if (isSupplier && addToClients && onReplicate) {
+        onReplicate({
+            ...formData,
+            id: crypto.randomUUID() // Create distinct entity ID for the client copy
+        });
+    }
+
     alert('Registro salvo com sucesso!');
     resetForm();
+    setAddToClients(false);
   };
 
   const handleOverwrite = () => {
@@ -107,9 +120,19 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
             ...formData,
             id: duplicateModal.existingEntity.id
         });
+
+        // Replicate to Clients if requested on update as well
+        if (isSupplier && addToClients && onReplicate) {
+             onReplicate({
+                ...formData,
+                id: crypto.randomUUID()
+            });
+        }
+
         alert('Registro atualizado com sucesso!');
         setDuplicateModal({ isOpen: false, existingEntity: null });
         resetForm();
+        setAddToClients(false);
     }
   };
 
@@ -205,11 +228,23 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
              </div>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 flex items-center gap-6">
             <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg shadow-md flex items-center gap-2 transition-all">
                <Save size={18} />
                Salvar Cadastro
             </button>
+
+            {isSupplier && onReplicate && (
+               <label className="flex items-center gap-2 cursor-pointer text-gray-700 font-bold text-sm select-none hover:text-emerald-700 transition-colors">
+                  <input 
+                     type="checkbox" 
+                     checked={addToClients} 
+                     onChange={(e) => setAddToClients(e.target.checked)}
+                     className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300 accent-emerald-600"
+                  />
+                  add a Clientes
+               </label>
+            )}
           </div>
         </form>
       </div>

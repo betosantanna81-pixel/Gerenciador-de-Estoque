@@ -576,7 +576,15 @@ function App() {
       case 'analysis':
         return <AnalysisForm items={items} currentAnalyses={analyses} onSave={handleSaveAnalysis} />;
       case 'suppliers':
-        return <EntityRegistry type="supplier" data={suppliers} onSave={handleSaveSupplier} onDelete={handleDeleteSupplier} />;
+        return (
+            <EntityRegistry 
+                type="supplier" 
+                data={suppliers} 
+                onSave={handleSaveSupplier} 
+                onDelete={handleDeleteSupplier} 
+                onReplicate={handleSaveClient} 
+            />
+        );
       case 'clients':
         return <EntityRegistry type="client" data={clients} onSave={handleSaveClient} onDelete={handleDeleteClient} />;
       case 'products':
