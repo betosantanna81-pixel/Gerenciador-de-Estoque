@@ -1,23 +1,29 @@
 
-import React, { useState } from 'react';
-import { LayoutDashboard, List, Settings, ChevronDown, ChevronRight, FolderPlus, DownloadCloud } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { LayoutDashboard, List, Settings, ChevronDown, ChevronRight, FolderPlus, DownloadCloud, UploadCloud } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface SidebarProps {
   currentView: ViewState;
   setView: (view: ViewState) => void;
   onExport: () => void;
+  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImport }) => {
   const [openEstoque, setOpenEstoque] = useState(true);
   const [openCadastros, setOpenCadastros] = useState(false);
   const [openOutros, setOpenOutros] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to determine if a parent section should be highlighted
   const isEstoqueActive = currentView === 'entry' || currentView === 'list' || currentView === 'stock';
   const isCadastrosActive = ['suppliers', 'clients', 'products', 'operations'].includes(currentView);
   const isOutrosActive = ['analysis', 'processes'].includes(currentView);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const MenuItem = ({ id, icon: Icon, label, active, onClick, disabled, isSubItem = false }: any) => {
     // The visual style from the image:
@@ -164,6 +170,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport }) => 
       
       {/* Import/Export Actions */}
       <div className="p-4 border-t border-emerald-800 space-y-3">
+         <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={onImport} 
+            className="hidden" 
+            accept=".xlsx, .xls, .csv" 
+         />
+         <button 
+            onClick={handleImportClick}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 py-3 rounded-xl transition-all shadow-lg font-bold uppercase text-xs tracking-wider border border-emerald-700"
+         >
+            <UploadCloud size={18} />
+            Importar Dados
+         </button>
          <button 
             onClick={onExport}
             className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl transition-all shadow-lg font-bold uppercase text-xs tracking-wider"

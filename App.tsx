@@ -157,13 +157,6 @@ function App() {
     }
   };
 
-  const handleImportItems = (importedItems: InventoryItem[]) => {
-    if (confirm(`Importar ${importedItems.length} itens? Isso irá substituir a lista atual.`)) {
-      setItems(importedItems);
-      alert('Dados carregados com sucesso!');
-    }
-  };
-
   const handleSaveAnalysis = (newAnalysis: ProductAnalysis) => {
     setAnalyses(prev => {
         // Filter out existing analysis for this batchId (if present) OR productCode (legacy support)
@@ -548,6 +541,14 @@ function App() {
     reader.readAsArrayBuffer(file);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleGlobalImport(e.target.files[0]);
+      // Reset input value to allow selecting the same file again if needed
+      e.target.value = '';
+    }
+  };
+
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
@@ -605,6 +606,7 @@ function App() {
         currentView={currentView} 
         setView={setCurrentView} 
         onExport={handleExportAll} 
+        onImport={handleFileChange}
       />
       <main className="ml-64 w-full transition-all duration-300">
         {renderContent()}
