@@ -60,17 +60,17 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
     // Check for duplicates
     const existing = data.find(d => d.code === formData.code);
     if (existing) {
-        const message = `O código "${formData.code}" já está cadastrado para "${existing.name}".\n\nDeseja SOBRESCREVER este cadastro com os novos dados?\n\n[OK] - Sim, sobrescrever e atualizar.\n[Cancelar] - Não, quero corrigir o código.`;
+        const message = `O ${labelCode} "${formData.code}" já está cadastrado para "${existing.name}".\n\nDeseja SOBRESCREVER este cadastro com os novos dados?\n\n[OK] - Sim, sobrescrever registro existente.\n[Cancelar] - Não, desejo mudar o código.`;
         
         if (confirm(message)) {
-            // Overwrite: Reuse existing ID
+            // Overwrite: Reuse existing ID to update
             onSave({
                 ...formData,
                 id: existing.id
             });
             alert('Registro atualizado com sucesso!');
         } else {
-            // Cancel: Allow user to edit code
+            // Cancel: Return allows user to edit the code
             return; 
         }
     } else {
@@ -82,7 +82,7 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
         alert('Registro salvo com sucesso!');
     }
 
-    // Reset form
+    // Reset form only if we proceeded with save
     setFormData({
       code: '',
       name: '',

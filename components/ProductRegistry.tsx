@@ -39,15 +39,17 @@ const ProductRegistry: React.FC<ProductRegistryProps> = ({ data, onSave, onDelet
     // Check for duplicate codes
     const existing = data.find(p => p.code === formData.code);
     if (existing) {
-        const message = `O produto com código "${formData.code}" já existe: "${existing.name}".\n\nDeseja SOBRESCREVER este produto com os novos dados?\n\n[OK] - Sim, sobrescrever.\n[Cancelar] - Não, corrigir código.`;
+        const message = `O produto com código "${formData.code}" já existe: "${existing.name}".\n\nDeseja SOBRESCREVER este produto com os novos dados?\n\n[OK] - Sim, sobrescrever registro existente.\n[Cancelar] - Não, desejo mudar o código.`;
+        
         if (confirm(message)) {
-            // Overwrite
+            // Overwrite: Reuse existing ID to update
             onSave({
                 ...formData,
                 id: existing.id
             });
             alert('Produto atualizado com sucesso!');
         } else {
+            // Cancel: Allow user to edit code
             return;
         }
     } else {
