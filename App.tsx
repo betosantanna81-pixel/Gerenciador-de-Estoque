@@ -177,20 +177,47 @@ function App() {
 
   // Registry Handlers
   const handleSaveSupplier = (entity: RegistryEntity) => {
-    setSuppliers(prev => [...prev, entity]);
+    setSuppliers(prev => {
+      const index = prev.findIndex(item => item.id === entity.id);
+      if (index >= 0) {
+        const updated = [...prev];
+        updated[index] = entity;
+        return updated;
+      }
+      return [...prev, entity];
+    });
   };
+
   const handleDeleteSupplier = (id: string) => {
     if(confirm('Excluir fornecedor?')) setSuppliers(prev => prev.filter(s => s.id !== id));
   };
+
   const handleSaveClient = (entity: RegistryEntity) => {
-    setClients(prev => [...prev, entity]);
+    setClients(prev => {
+      const index = prev.findIndex(item => item.id === entity.id);
+      if (index >= 0) {
+        const updated = [...prev];
+        updated[index] = entity;
+        return updated;
+      }
+      return [...prev, entity];
+    });
   };
+
   const handleDeleteClient = (id: string) => {
     if(confirm('Excluir cliente?')) setClients(prev => prev.filter(c => c.id !== id));
   };
   
   const handleSaveProduct = (product: ProductEntity) => {
-    setRegisteredProducts(prev => [...prev, product]);
+    setRegisteredProducts(prev => {
+      const index = prev.findIndex(item => item.id === product.id);
+      if (index >= 0) {
+        const updated = [...prev];
+        updated[index] = product;
+        return updated;
+      }
+      return [...prev, product];
+    });
   };
   
   const handleDeleteProduct = (id: string) => {

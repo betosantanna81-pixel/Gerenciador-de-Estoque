@@ -37,22 +37,33 @@ const ProductRegistry: React.FC<ProductRegistryProps> = ({ data, onSave, onDelet
     }
 
     // Check for duplicate codes
-    if (data.some(p => p.code === formData.code)) {
-        alert('Já existe um produto cadastrado com este código.');
-        return;
+    const existing = data.find(p => p.code === formData.code);
+    if (existing) {
+        const message = `O produto com código "${formData.code}" já existe: "${existing.name}".\n\nDeseja SOBRESCREVER este produto com os novos dados?\n\n[OK] - Sim, sobrescrever.\n[Cancelar] - Não, corrigir código.`;
+        if (confirm(message)) {
+            // Overwrite
+            onSave({
+                ...formData,
+                id: existing.id
+            });
+            alert('Produto atualizado com sucesso!');
+        } else {
+            return;
+        }
+    } else {
+        // Create New
+        onSave({
+            ...formData,
+            id: crypto.randomUUID()
+        });
+        alert('Produto cadastrado com sucesso!');
     }
-    
-    onSave({
-      ...formData,
-      id: crypto.randomUUID()
-    });
 
     // Reset form
     setFormData({
       name: '',
       code: ''
     });
-    alert('Produto cadastrado com sucesso!');
   };
 
   const inputClass = "w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 transition-all bg-white";

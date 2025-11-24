@@ -57,10 +57,30 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
       return;
     }
     
-    onSave({
-      ...formData,
-      id: crypto.randomUUID()
-    });
+    // Check for duplicates
+    const existing = data.find(d => d.code === formData.code);
+    if (existing) {
+        const message = `O código "${formData.code}" já está cadastrado para "${existing.name}".\n\nDeseja SOBRESCREVER este cadastro com os novos dados?\n\n[OK] - Sim, sobrescrever e atualizar.\n[Cancelar] - Não, quero corrigir o código.`;
+        
+        if (confirm(message)) {
+            // Overwrite: Reuse existing ID
+            onSave({
+                ...formData,
+                id: existing.id
+            });
+            alert('Registro atualizado com sucesso!');
+        } else {
+            // Cancel: Allow user to edit code
+            return; 
+        }
+    } else {
+        // New Record
+        onSave({
+            ...formData,
+            id: crypto.randomUUID()
+        });
+        alert('Registro salvo com sucesso!');
+    }
 
     // Reset form
     setFormData({
@@ -80,7 +100,6 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
       phone: '',
       email: ''
     });
-    alert('Registro salvo com sucesso!');
   };
 
   const inputClass = "w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 text-sm bg-white";
