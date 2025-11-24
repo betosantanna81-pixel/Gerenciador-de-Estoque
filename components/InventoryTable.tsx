@@ -130,7 +130,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete, onImpo
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider">Data Saída</th>
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider text-center">Qtd</th>
                 <th className="p-4 font-semibold text-xs uppercase tracking-wider text-right">Subtotal</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider text-center">Ações</th>
+                <th className="p-4 font-semibold text-xs uppercase tracking-wider text-center">AÇÕES</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -156,10 +156,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, onDelete, onImpo
                       <td className="p-4 text-center">
                         <button 
                           onClick={() => onDelete(item.id)}
-                          className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition"
+                          className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-all transform hover:scale-110"
                           title="Excluir"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={20} />
                         </button>
                       </td>
                     </tr>

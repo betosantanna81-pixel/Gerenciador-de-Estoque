@@ -352,6 +352,7 @@ function App() {
     XLSX.writeFile(wb, "banco_dados_controle_estoque.xlsx");
   };
 
+  // Keep logic for manual restore in case we add button back, but currently unused via sidebar
   const handleGlobalImport = (file: File) => {
     if (!confirm('ATENÇÃO: A importação irá substituir TODOS os dados atuais. Deseja continuar?')) return;
 
@@ -570,7 +571,6 @@ function App() {
         currentView={currentView} 
         setView={setCurrentView} 
         onExport={handleExportAll} 
-        onImport={handleGlobalImport}
       />
       <main className="ml-64 w-full transition-all duration-300">
         {renderContent()}

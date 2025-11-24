@@ -1,38 +1,23 @@
 
-import React, { useState, useRef } from 'react';
-import { LayoutDashboard, PlusCircle, List, ArrowUpRight, Settings, ChevronDown, ChevronRight, Users, Map, PackageCheck, FolderPlus, BarChart2, Workflow, UserCheck, ClipboardList, Package, DownloadCloud, UploadCloud } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, List, Settings, ChevronDown, ChevronRight, FolderPlus, DownloadCloud } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface SidebarProps {
   currentView: ViewState;
   setView: (view: ViewState) => void;
   onExport: () => void;
-  onImport: (file: File) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImport }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport }) => {
   const [openEstoque, setOpenEstoque] = useState(true);
   const [openCadastros, setOpenCadastros] = useState(false);
   const [openOutros, setOpenOutros] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to determine if a parent section should be highlighted
   const isEstoqueActive = currentView === 'entry' || currentView === 'list' || currentView === 'stock';
   const isCadastrosActive = ['suppliers', 'clients', 'products', 'operations'].includes(currentView);
   const isOutrosActive = ['analysis', 'processes'].includes(currentView);
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onImport(file);
-    }
-    // Reset input
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
 
   const MenuItem = ({ id, icon: Icon, label, active, onClick, disabled, isSubItem = false }: any) => {
     // The visual style from the image:
@@ -186,22 +171,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
             <DownloadCloud size={18} />
             Exportar
          </button>
-         
-         <input 
-           type="file" 
-           ref={fileInputRef}
-           onChange={handleFileChange}
-           className="hidden"
-           accept=".xlsx, .xls"
-         />
-         <button 
-            onClick={handleImportClick}
-            className="w-full flex items-center justify-center gap-2 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 py-3 rounded-xl transition-all shadow-lg font-bold uppercase text-xs tracking-wider border border-emerald-700"
-         >
-            <UploadCloud size={18} />
-            Importar
-         </button>
-         <p className="text-[10px] text-emerald-400 text-center mt-2">Salvar/Carregar banco_dados</p>
       </div>
 
     </div>
