@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { RegistryEntity } from '../types';
-import { Save, Trash2, MapPin, Phone, Mail, Building2, FileText, User } from 'lucide-react';
+import { Save, Trash2, MapPin, Phone, Mail, Building2, FileText, AlertTriangle, X } from 'lucide-react';
 
 interface EntityRegistryProps {
   type: 'supplier' | 'client';
@@ -16,6 +16,11 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
   const labelCode = isSupplier ? 'Cód. Fornecedor' : 'Cód. Cliente';
   const labelName = isSupplier ? 'Nome Fornecedor' : 'Nome Cliente';
   
+  const [duplicateModal, setDuplicateModal] = useState<{isOpen: boolean; existingEntity: RegistryEntity | null}>({
+    isOpen: false,
+    existingEntity: null
+  });
+
   const [formData, setFormData] = useState<Omit<RegistryEntity, 'id'>>({
     code: '',
     name: '',
@@ -50,39 +55,7 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.code.length !== 3) {
-      alert('O código deve ter 3 dígitos.');
-      return;
-    }
-    
-    // Check for duplicates
-    const existing = data.find(d => d.code === formData.code);
-    if (existing) {
-        const message = `O ${labelCode} "${formData.code}" já está cadastrado para "${existing.name}".\n\nDeseja SOBRESCREVER este cadastro com os novos dados?\n\n[OK] - Sim, sobrescrever registro existente.\n[Cancelar] - Não, desejo mudar o código.`;
-        
-        if (confirm(message)) {
-            // Overwrite: Reuse existing ID to update
-            onSave({
-                ...formData,
-                id: existing.id
-            });
-            alert('Registro atualizado com sucesso!');
-        } else {
-            // Cancel: Return allows user to edit the code
-            return; 
-        }
-    } else {
-        // New Record
-        onSave({
-            ...formData,
-            id: crypto.randomUUID()
-        });
-        alert('Registro salvo com sucesso!');
-    }
-
-    // Reset form only if we proceeded with save
+  const resetForm = () => {
     setFormData({
       code: '',
       name: '',
@@ -102,11 +75,49 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
     });
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.code.length !== 3) {
+      alert('O código deve ter 3 dígitos.');
+      return;
+    }
+    
+    // Check for duplicates
+    const existing = data.find(d => d.code === formData.code);
+    if (existing) {
+        setDuplicateModal({
+            isOpen: true,
+            existingEntity: existing
+        });
+        return;
+    }
+
+    // New Record
+    onSave({
+        ...formData,
+        id: crypto.randomUUID()
+    });
+    alert('Registro salvo com sucesso!');
+    resetForm();
+  };
+
+  const handleOverwrite = () => {
+    if (duplicateModal.existingEntity) {
+        onSave({
+            ...formData,
+            id: duplicateModal.existingEntity.id
+        });
+        alert('Registro atualizado com sucesso!');
+        setDuplicateModal({ isOpen: false, existingEntity: null });
+        resetForm();
+    }
+  };
+
   const inputClass = "w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 text-sm bg-white";
   const sectionTitleClass = "text-emerald-800 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-emerald-100 pb-1 mt-2";
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto relative">
       <h2 className="text-2xl font-bold text-emerald-900 mb-6 flex items-center gap-2">
         <Building2 size={28} />
         {title}
@@ -243,6 +254,51 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
             </table>
          </div>
       </div>
+
+      {/* Duplicate Confirmation Modal */}
+      {duplicateModal.isOpen && duplicateModal.existingEntity && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="bg-yellow-500 p-4 text-white flex justify-between items-center">
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                      <AlertTriangle size={24} className="text-white" />
+                      Código Já Existente
+                  </h3>
+                  <button 
+                    onClick={() => setDuplicateModal({isOpen: false, existingEntity: null})}
+                    className="text-white/80 hover:text-white transition"
+                  >
+                    <X size={24} />
+                  </button>
+              </div>
+              <div className="p-6">
+                  <p className="text-gray-700 text-sm leading-relaxed mb-4">
+                     O {labelCode} <span className="font-bold font-mono">{duplicateModal.existingEntity.code}</span> já está cadastrado para <span className="font-bold">{duplicateModal.existingEntity.name}</span>.
+                  </p>
+                  <p className="text-gray-600 text-sm mb-6">
+                     Gostaria de atualizar (sobrescrever) os dados deste registro existente ou prefere alterar o código do novo cadastro?
+                  </p>
+                  
+                  <div className="flex flex-col gap-3">
+                      <button 
+                         onClick={handleOverwrite}
+                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-sm"
+                      >
+                         <Save size={18} />
+                         Sim, Sobrescrever Dados
+                      </button>
+                      <button 
+                         onClick={() => setDuplicateModal({isOpen: false, existingEntity: null})}
+                         className="w-full bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-700 font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all"
+                      >
+                         Não, Alterar Código
+                      </button>
+                  </div>
+              </div>
+           </div>
+        </div>
+      )}
+
     </div>
   );
 };
