@@ -105,7 +105,7 @@ const ProductRegistry: React.FC<ProductRegistryProps> = ({ data, onSave, onDelet
           </div>
 
           <div className="w-full md:w-48">
-            <label className="block text-sm font-bold text-gray-700 mb-2">Código (3 dígitos)</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Cód. Produto</label>
             <input 
                 type="text" 
                 name="code" 

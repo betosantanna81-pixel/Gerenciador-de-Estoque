@@ -25,6 +25,7 @@ export interface ProductAnalysis {
   mn: number;
   b: number;
   pb: number;
+  fe: number; // Added
   cd: number; // ppm
   h2o: number;
   mesh35: number;

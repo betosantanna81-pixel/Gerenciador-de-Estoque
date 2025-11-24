@@ -284,6 +284,7 @@ function App() {
                  'Mn (%)': (analysis as any).mn || 0,
                  'B (%)': (analysis as any).b || 0,
                  'Pb (%)': (analysis as any).pb || 0,
+                 'Fe (%)': (analysis as any).fe || 0,
                  'Cd (ppm)': (analysis as any).cd || 0,
                  'H2O (%)': (analysis as any).h2o || 0,
                  '#35 (%)': (analysis as any).mesh35 || 0,
@@ -363,7 +364,8 @@ function App() {
             'Produto': match ? match.productName : '-',
             'Código': a.productCode,
             'Cu (%)': a.cu, 'Zn (%)': a.zn, 'Mn (%)': a.mn, 'B (%)': a.b,
-            'Pb (%)': a.pb, 'Cd (ppm)': a.cd, 'H2O (%)': a.h2o, '#35 (%)': a.mesh35, 'Ret. (%)': a.ret
+            'Pb (%)': a.pb, 'Fe (%)': (a as any).fe || 0, 'Cd (ppm)': a.cd, 
+            'H2O (%)': a.h2o, '#35 (%)': a.mesh35, 'Ret. (%)': a.ret
          };
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analysesExport), "Analises");
@@ -493,6 +495,7 @@ function App() {
                mn: Number(r['Mn (%)'] || 0),
                b: Number(r['B (%)'] || 0),
                pb: Number(r['Pb (%)'] || 0),
+               fe: Number(r['Fe (%)'] || 0),
                cd: Number(r['Cd (ppm)'] || 0),
                h2o: Number(r['H2O (%)'] || 0),
                mesh35: Number(r['#35 (%)'] || 0),
@@ -514,6 +517,7 @@ function App() {
                  mn: Number(r['Mn (%)'] || 0),
                  b: Number(r['B (%)'] || 0),
                  pb: Number(r['Pb (%)'] || 0),
+                 fe: Number(r['Fe (%)'] || 0),
                  cd: Number(r['Cd (ppm)'] || 0),
                  h2o: Number(r['H2O (%)'] || 0),
                  mesh35: Number(r['#35 (%)'] || 0),

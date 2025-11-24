@@ -71,11 +71,16 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
 
          // Find analysis based on Batch ID first, fallback to Product Code if necessary (or just Batch ID as per requirement)
          const analysis = analyses.find(a => a.batchId === group.batchId) || analyses.find(a => !a.batchId && a.productCode === group.productCode);
+         
+         // Ensure default includes 'fe'
+         const safeAnalysis = analysis 
+            ? { ...analysis, fe: (analysis as any).fe || 0 }
+            : { cu:0, zn:0, mn:0, b:0, pb:0, fe:0, cd:0, h2o:0, mesh35:0, ret:0 };
 
          return {
            ...group,
            totalValue: estimatedValue,
-           analysis: analysis || { cu:0, zn:0, mn:0, b:0, pb:0, cd:0, h2o:0, mesh35:0, ret:0 }
+           analysis: safeAnalysis
          };
       }).sort((a, b) => a.productName.localeCompare(b.productName));
 
@@ -122,7 +127,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
   };
 
   // Helper to format percentage/ppm
-  const fmt = (val: number, isPpm = false) => {
+  const fmt = (val: number | undefined, isPpm = false) => {
     if (val === undefined || val === null) return '-';
     return isPpm ? `${val}` : `${val}%`;
   };
@@ -214,6 +219,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Mn (%)</th>
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">B (%)</th>
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Pb (%)</th>
+                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Fe (%)</th>
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Cd (ppm)</th>
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">H2O (%)</th>
                 <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">#35 (%)</th>
@@ -223,7 +229,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
             <tbody className="divide-y divide-gray-100">
               {filteredStock.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="p-8 text-center text-gray-400">Nenhum produto em estoque correspondente.</td>
+                  <td colSpan={15} className="p-8 text-center text-gray-400">Nenhum produto em estoque correspondente.</td>
                 </tr>
               ) : (
                 filteredStock.map((item) => (
@@ -262,6 +268,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                     <td className="p-3 text-xs text-center">{fmt(item.analysis.mn)}</td>
                     <td className="p-3 text-xs text-center">{fmt(item.analysis.b)}</td>
                     <td className="p-3 text-xs text-center">{fmt(item.analysis.pb)}</td>
+                    <td className="p-3 text-xs text-center">{fmt(item.analysis.fe)}</td>
                     <td className="p-3 text-xs text-center">{fmt(item.analysis.cd, true)}</td>
                     <td className="p-3 text-xs text-center">{fmt(item.analysis.h2o)}</td>
                     <td className="p-3 text-xs text-center">{fmt(item.analysis.mesh35)}</td>

@@ -34,6 +34,7 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ items, currentAnalyses, onS
     mn: 0,
     b: 0,
     pb: 0,
+    fe: 0,
     cd: 0,
     h2o: 0,
     mesh35: 0,
@@ -49,12 +50,15 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ items, currentAnalyses, onS
       const batchItem = availableBatches.find(b => b.batchId === selectedBatchId);
       
       if (existing) {
-        setFormData(existing);
+        setFormData({
+            ...existing,
+            fe: (existing as any).fe || 0 // Ensure fe is handled for existing records that might miss it
+        });
       } else {
         setFormData({
             batchId: selectedBatchId,
             productCode: batchItem?.productCode || '',
-            cu: 0, zn: 0, mn: 0, b: 0, pb: 0, cd: 0, h2o: 0, mesh35: 0, ret: 0
+            cu: 0, zn: 0, mn: 0, b: 0, pb: 0, fe: 0, cd: 0, h2o: 0, mesh35: 0, ret: 0
         });
       }
     }
@@ -113,6 +117,7 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ items, currentAnalyses, onS
                     { label: "Mn (%)", name: "mn" },
                     { label: "B (%)", name: "b" },
                     { label: "Pb (%)", name: "pb" },
+                    { label: "Fe (%)", name: "fe" },
                     { label: "Cd (ppm)", name: "cd" },
                     { label: "H2O (%)", name: "h2o" },
                     { label: "#35 (%)", name: "mesh35" },
