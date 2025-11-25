@@ -176,7 +176,7 @@ const ProcessForm: React.FC<ProcessFormProps> = ({ availableBatches, registeredP
                   <option value="">-- Selecione um Lote para Processar --</option>
                   {availableBatches.map(b => (
                     <option key={b.batchId} value={b.batchId}>
-                       {b.batchId} - {b.productName} ({b.isService ? 'M.O.' : 'Prod'}) - {b.remainingQuantity} Kg
+                       {b.batchId} - {b.supplier} - {b.productName} ({b.isService ? 'M.O.' : 'Prod'}) - {b.remainingQuantity} Kg
                     </option>
                   ))}
                 </select>
