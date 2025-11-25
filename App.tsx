@@ -198,7 +198,7 @@ function App() {
         unitCost: 0, // Cost tracked on entry, not strictly needed on exit for simple stock
         unitPrice: 0,
         observations: `Processamento - Gerou O.P.`,
-        isService: false // Assuming processes consume material, not service
+        isService: orderData.sourceIsService // Respect source type
     };
 
     // 2. Create Entries for Outputs
@@ -224,7 +224,7 @@ function App() {
             unitCost: 0, 
             unitPrice: 0,
             observations: `Oriundo do Processamento do Lote ${orderData.sourceBatchId}`,
-            isService: false
+            isService: out.destinationIsService // Respect destination type
         };
         
         newItems.push(newItem);
@@ -486,10 +486,11 @@ function App() {
     const opsData = productionOrders.map(op => ({
         'Data': op.date,
         'Lote Origem': op.sourceBatchId,
+        'Origem Tipo': op.sourceIsService ? 'M.O.' : 'Produto',
         'Produto Origem': op.sourceProduct,
         'Qtd Processada': op.processedQuantity,
         'Fornecedor': op.supplier,
-        'Saídas': op.outputs.map(o => `${o.quantity}kg ${o.productName} (${o.newBatchId})`).join('; '),
+        'Saídas': op.outputs.map(o => `${o.quantity}kg ${o.productName} [${o.destinationIsService ? 'M.O.' : 'Prod'}] (${o.newBatchId})`).join('; '),
         'Perda (Kg)': op.loss
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(opsData), "OPs");
@@ -601,7 +602,15 @@ function App() {
       case 'products':
         return <ProductRegistry data={registeredProducts} onSave={handleSaveProduct} onDelete={handleDeleteProduct} />;
       case 'processes':
-        return <ProcessForm availableBatches={batchesWithStock.filter(b => !b.isService)} registeredProducts={registeredProducts} onSave={handleSaveProcess} />;
+        // Now passing all batches (Products + Services) and all registry types
+        return (
+            <ProcessForm 
+                availableBatches={batchesWithStock} 
+                registeredProducts={registeredProducts} 
+                registeredServices={registeredServices}
+                onSave={handleSaveProcess} 
+            />
+        );
       case 'production_orders':
         return <ProductionOrdersTable orders={productionOrders} />;
       default:

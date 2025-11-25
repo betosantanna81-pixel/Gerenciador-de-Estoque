@@ -70,6 +70,7 @@ export interface ProductionOrder {
   date: string;
   sourceBatchId: string;
   sourceProduct: string;
+  sourceIsService: boolean; // Added to track source type
   processedQuantity: number;
   supplier: string;
   supplierCode: string;
@@ -78,6 +79,7 @@ export interface ProductionOrder {
     productCode: string;
     quantity: number;
     newBatchId: string;
+    destinationIsService: boolean; // Added to track output destination
   }[];
   loss: number;
 }
