@@ -163,6 +163,10 @@ function App() {
     setItems(prev => [...prev, newItem]);
   };
 
+  const handleUpdateItem = (id: string, updates: Partial<InventoryItem>) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+  };
+
   const getNextBatchSequence = (supplierCode: string) => {
     const supplierEntries = items.filter(i => i.supplierCode === supplierCode && !!i.entryDate);
     let maxSeq = 0;
@@ -221,7 +225,7 @@ function App() {
             entryDate: orderData.date,
             exitDate: '',
             quantity: out.quantity,
-            unitCost: 0, 
+            unitCost: out.unitCost || 0, 
             unitPrice: 0,
             observations: `Oriundo do Processamento do Lote ${orderData.sourceBatchId}`,
             isService: out.destinationIsService // Respect destination type
@@ -490,7 +494,7 @@ function App() {
         'Produto Origem': op.sourceProduct,
         'Qtd Processada': op.processedQuantity,
         'Fornecedor': op.supplier,
-        'Saídas': op.outputs.map(o => `${o.quantity}kg ${o.productName} [${o.destinationIsService ? 'M.O.' : 'Prod'}] (${o.newBatchId})`).join('; '),
+        'Saídas': op.outputs.map(o => `${o.quantity}kg ${o.productName} [${o.destinationIsService ? 'M.O.' : 'Prod'}] (${o.newBatchId}) R$${o.unitCost}`).join('; '),
         'Perda (Kg)': op.loss
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(opsData), "OPs");
@@ -589,7 +593,7 @@ function App() {
         // Service Stock (M.O. only)
         return <CurrentStockTable items={items.filter(i => i.isService)} analyses={analyses} />;
       case 'billing_mo':
-        return <LaborBillingTable items={items.filter(i => i.isService)} />;
+        return <LaborBillingTable items={items.filter(i => i.isService)} onUpdateItem={handleUpdateItem} />;
       case 'services_registry':
         return <ServiceRegistry data={registeredServices} onSave={handleSaveService} onDelete={handleDeleteService} />;
 

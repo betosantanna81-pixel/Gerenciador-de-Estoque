@@ -80,6 +80,7 @@ export interface ProductionOrder {
     quantity: number;
     newBatchId: string;
     destinationIsService: boolean; // Added to track output destination
+    unitCost: number; // Added to track cost of generated item
   }[];
   loss: number;
 }

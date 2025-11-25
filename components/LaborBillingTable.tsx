@@ -1,14 +1,17 @@
 
 import React, { useMemo, useState } from 'react';
 import { InventoryItem } from '../types';
-import { Search, DollarSign, Filter, XCircle } from 'lucide-react';
+import { Search, DollarSign, Filter, XCircle, Edit2, Check } from 'lucide-react';
 
 interface LaborBillingTableProps {
   items: InventoryItem[]; // Should only be M.O. items
+  onUpdateItem?: (id: string, updates: Partial<InventoryItem>) => void;
 }
 
-const LaborBillingTable: React.FC<LaborBillingTableProps> = ({ items }) => {
+const LaborBillingTable: React.FC<LaborBillingTableProps> = ({ items, onUpdateItem }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   // Filter for exits only (Billing implies charging out)
   const billingItems = useMemo(() => {
@@ -24,6 +27,26 @@ const LaborBillingTable: React.FC<LaborBillingTableProps> = ({ items }) => {
   }, [items, searchTerm]);
 
   const totalBilled = useMemo(() => billingItems.reduce((acc, i) => acc + (i.quantity * i.unitCost), 0), [billingItems]);
+
+  const startEdit = (item: InventoryItem) => {
+    setEditingId(item.id);
+    setEditValue(item.unitCost.toString());
+  };
+
+  const saveEdit = () => {
+    if (editingId && onUpdateItem) {
+        const val = parseFloat(editValue);
+        if (!isNaN(val) && val >= 0) {
+            onUpdateItem(editingId, { unitCost: val });
+        }
+    }
+    setEditingId(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') saveEdit();
+    if (e.key === 'Escape') setEditingId(null);
+  };
 
   return (
     <div className="p-8 h-screen flex flex-col">
@@ -84,9 +107,34 @@ const LaborBillingTable: React.FC<LaborBillingTableProps> = ({ items }) => {
                       <td className="p-4 text-sm font-bold text-gray-800">{item.productName}</td>
                       <td className="p-4 text-sm text-gray-700">{item.supplier}</td>
                       <td className="p-4 text-sm text-center font-bold bg-blue-50/50 text-blue-800">{item.quantity}</td>
-                      <td className="p-4 text-sm text-right text-gray-600">
-                         {item.unitCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      
+                      {/* Editable Unit Cost Cell */}
+                      <td 
+                        className="p-4 text-sm text-right text-gray-600 cursor-pointer hover:bg-blue-100 transition-colors relative group"
+                        onClick={() => !editingId && startEdit(item)}
+                        title="Clique para editar valor"
+                      >
+                         {editingId === item.id ? (
+                            <div className="flex items-center justify-end gap-1">
+                                <input 
+                                    autoFocus
+                                    type="number"
+                                    step="0.01"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    onBlur={saveEdit}
+                                    className="w-20 p-1 text-right border border-blue-300 rounded outline-none text-blue-900 font-bold"
+                                />
+                            </div>
+                         ) : (
+                            <div className="flex items-center justify-end gap-2">
+                                <span>{item.unitCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                <Edit2 size={12} className="opacity-0 group-hover:opacity-50" />
+                            </div>
+                         )}
                       </td>
+
                       <td className="p-4 text-sm text-right font-bold text-gray-800">
                          {(item.quantity * item.unitCost).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </td>
