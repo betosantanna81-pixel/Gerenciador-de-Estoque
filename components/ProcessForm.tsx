@@ -62,8 +62,6 @@ const ProcessForm: React.FC<ProcessFormProps> = ({ availableBatches, registeredP
         newOutputs[index].quantity = parseFloat(value as string) || 0; 
       } else if (field === 'isService') {
          newOutputs[index].isService = value as boolean;
-         // We do NOT clear the productId here anymore, because the list of available items (registeredProducts)
-         // remains the same regardless of the destination type.
       } else {
         newOutputs[index].productId = value as string;
       }
@@ -250,7 +248,7 @@ const ProcessForm: React.FC<ProcessFormProps> = ({ availableBatches, registeredP
                            required
                         >
                            <option value="">-- Selecione o Item --</option>
-                           {/* Always map from Registered Products as requested, regardless of destination */}
+                           {/* Always map from Registered Products (Physical Stock) regardless of destination, as requested */}
                            {registeredProducts.map(p => (
                              <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
                            ))}
