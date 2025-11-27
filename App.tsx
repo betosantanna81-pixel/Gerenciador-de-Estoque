@@ -477,11 +477,29 @@ function App() {
     // 5. Cad_Servico
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(registeredServices), "Cad_Servico");
 
+    // Helper to flatten entity with address
+    const mapEntityFlat = (e: RegistryEntity) => ({
+      id: e.id,
+      code: e.code,
+      name: e.name,
+      contact: e.contact,
+      cnpj: e.cnpj,
+      ie: e.ie,
+      phone: e.phone,
+      email: e.email,
+      addr_zip: e.address?.zip || '',
+      addr_street: e.address?.street || '',
+      addr_num: e.address?.number || '',
+      addr_neighbor: e.address?.neighborhood || '',
+      addr_city: e.address?.city || '',
+      addr_state: e.address?.state || '',
+    });
+
     // 6. Cad_Fornecedores
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(suppliers), "Cad_Fornecedores");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(suppliers.map(mapEntityFlat)), "Cad_Fornecedores");
 
     // 7. Cad_Clientes
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clients), "Cad_Clientes");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clients.map(mapEntityFlat)), "Cad_Clientes");
 
     // 8. Cad_Produtos
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(registeredProducts), "Cad_Produtos");
@@ -530,16 +548,37 @@ function App() {
             return undefined;
         };
 
+        const mapEntityFromImport = (r: any): RegistryEntity => ({
+            id: findValue(r, ['id']) || crypto.randomUUID(),
+            code: findValue(r, ['code', 'código', 'cod']) || '',
+            name: findValue(r, ['name', 'nome']) || '',
+            contact: findValue(r, ['contact', 'contato']) || '',
+            cnpj: findValue(r, ['cnpj']) || '',
+            ie: findValue(r, ['ie', 'inscrição']) || '',
+            phone: findValue(r, ['phone', 'telefone']) || '',
+            email: findValue(r, ['email', 'e-mail']) || '',
+            address: {
+                zip: findValue(r, ['addr_zip', 'cep']) || '',
+                street: findValue(r, ['addr_street', 'logradouro', 'rua']) || '',
+                number: findValue(r, ['addr_num', 'número', 'numero']) || '',
+                neighborhood: findValue(r, ['addr_neighbor', 'bairro']) || '',
+                city: findValue(r, ['addr_city', 'cidade']) || '',
+                state: findValue(r, ['addr_state', 'estado', 'uf']) || ''
+            }
+        });
+
         // 1. Cad_Fornecedores -> suppliers
         const suppliersSheet = findSheet(['Cad_Fornecedores', 'Fornecedores']);
         if (suppliersSheet) {
-            setSuppliers(XLSX.utils.sheet_to_json(suppliersSheet));
+            const raw = XLSX.utils.sheet_to_json(suppliersSheet);
+            setSuppliers(raw.map(mapEntityFromImport));
         }
 
         // 2. Cad_Clientes -> clients
         const clientsSheet = findSheet(['Cad_Clientes', 'Clientes']);
         if (clientsSheet) {
-            setClients(XLSX.utils.sheet_to_json(clientsSheet));
+            const raw = XLSX.utils.sheet_to_json(clientsSheet);
+            setClients(raw.map(mapEntityFromImport));
         }
 
         // 3. Cad_Produtos -> registeredProducts
@@ -557,18 +596,7 @@ function App() {
         // 5. OP -> productionOrders
         const opSheet = findSheet(['OP', 'OPs', 'Ordens de Produção']);
         if (opSheet) {
-            // Note: Complex objects like 'outputs' might be stringified in CSV/Excel. 
-            // Reconstructing strict objects from flat Excel is limited without JSON storage.
-            // Assuming basic recovery or manual JSON parsing if stored as string.
-            // For now, we load what we can or clear if format is too complex for flat file.
-            // Simplified logic: We won't fully reconstruct complex nested OPs from flat excel 
-            // unless we stringified them. The export stringified 'Saídas'.
-            // For full restore, we'd need to parse that string.
-            // Skipping complex restore to avoid corruption, user can re-enter or we rely on LocalStorage for full persistence.
-            // *Correction*: LocalStorage is the primary persistence. Excel is for data interchange/backup.
-            // We will attempt to load if structure matches types.
-            const rawOps = XLSX.utils.sheet_to_json(opSheet);
-            // Basic mapping if possible
+            // Basic load - complex nesting skipped for simple interchange
         }
 
         // 6. Entrada_Saida -> items (Main History)

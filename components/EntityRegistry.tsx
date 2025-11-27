@@ -278,7 +278,8 @@ const EntityRegistry: React.FC<EntityRegistryProps> = ({ type, data, onSave, onD
                            <td className="p-4 text-gray-500">{item.cnpj || '-'}</td>
                            <td className="p-4 text-gray-500">{item.contact || '-'}</td>
                            <td className="p-4 text-gray-500">{item.phone || '-'}</td>
-                           <td className="p-4 text-gray-500">{item.address.city}/{item.address.state}</td>
+                           {/* Added optional chaining ?. to address to prevent crashes on bad data */}
+                           <td className="p-4 text-gray-500">{item.address?.city || '-'}/{item.address?.state || '-'}</td>
                            <td className="p-4 text-center">
                               <button onClick={() => onDelete(item.id)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={16} /></button>
                            </td>
