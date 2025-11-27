@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { InventoryItem, RegistryEntity, ProductEntity, ServiceEntity } from '../types';
-import { Save, AlertCircle, Briefcase } from 'lucide-react';
+import { Save, AlertCircle, Briefcase, Package } from 'lucide-react';
 
 interface AvailableBatch {
   batchId: string;
@@ -233,8 +233,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
     if (movementType === 'entrada' && isService && selectedMaterialTypeId) {
         const material = registeredProducts.find(p => p.id === selectedMaterialTypeId);
         if (material) {
-            const matInfo = `Material de Entrada: ${material.name}`;
-            finalObservations = finalObservations ? `${matInfo} | ${finalObservations}` : matInfo;
+            const matInfo = `Material Físico: ${material.name}`;
+            finalObservations = finalObservations 
+                ? `${matInfo} | ${finalObservations}` 
+                : matInfo;
         }
     }
 
@@ -482,24 +484,25 @@ const EntryForm: React.FC<EntryFormProps> = ({
             />
           </div>
 
-          {/* Material Type Selection for M.O. Entries - MOVED HERE AS REQUESTED */}
+          {/* Material Type Selection for M.O. Entries */}
           {isService && movementType === 'entrada' && (
-            <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-blue-800 mb-1">
+            <div className="md:col-span-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <label className="block text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                    <Package size={16} />
                     Tipo de Material (Entrada de M.O.)
                 </label>
                 <select 
                     value={selectedMaterialTypeId}
                     onChange={(e) => setSelectedMaterialTypeId(e.target.value)}
-                    className={`${inputClass} border-blue-300 bg-blue-50 text-gray-800`}
+                    className={`${inputClass} bg-white border-blue-300 text-gray-800`}
                 >
                     <option value="">-- Selecione o Material Físico (Opcional) --</option>
                     {registeredProducts.map(p => (
                         <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
                     ))}
                 </select>
-                <p className="text-xs text-blue-600 mt-1">
-                    Selecione qual material está sendo recebido para este serviço (ex: Borra de Cobre, Sucata).
+                <p className="text-xs text-blue-600 mt-1 italic">
+                    *Selecione qual material está sendo recebido para este serviço (ex: Sucata para fundição).
                 </p>
             </div>
           )}
