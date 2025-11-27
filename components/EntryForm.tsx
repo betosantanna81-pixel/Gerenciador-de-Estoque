@@ -45,6 +45,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
   // Track selected IDs for dropdowns
   const [selectedEntityId, setSelectedEntityId] = useState('');
   const [selectedItemId, setSelectedItemId] = useState(''); // Product or Service ID
+  
+  // New Field: Material Type for M.O. Entry
+  const [selectedMaterialTypeId, setSelectedMaterialTypeId] = useState('');
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -118,6 +121,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
     setSelectedBatchId('');
     setSelectedEntityId('');
     setSelectedItemId('');
+    setSelectedMaterialTypeId('');
     setFormData({
       date: new Date().toISOString().split('T')[0],
       supplier: '',
@@ -224,6 +228,16 @@ const EntryForm: React.FC<EntryFormProps> = ({
         }
     }
 
+    // Prepare observations: Append Material Type if M.O. Entry
+    let finalObservations = formData.observations;
+    if (movementType === 'entrada' && isService && selectedMaterialTypeId) {
+        const material = registeredProducts.find(p => p.id === selectedMaterialTypeId);
+        if (material) {
+            const matInfo = `Material de Entrada: ${material.name}`;
+            finalObservations = finalObservations ? `${matInfo} | ${finalObservations}` : matInfo;
+        }
+    }
+
     onAdd({
       entryDate: movementType === 'entrada' ? formData.date : '',
       exitDate: movementType === 'saída' ? formData.date : '',
@@ -235,7 +249,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
       unitCost: Number(formData.unitCost),
       unitPrice: 0, 
       batchId: movementType === 'saída' ? selectedBatchId : '', 
-      observations: formData.observations,
+      observations: finalObservations,
       isService: isService // Pass the flag
     });
 
@@ -295,7 +309,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     checked={isService} 
                     onChange={(e) => {
                         setIsService(e.target.checked);
-                        setSelectedItemId(''); 
+                        setSelectedItemId('');
+                        setSelectedMaterialTypeId(''); 
                         setFormData(prev => ({...prev, productName: '', productCode: ''}));
                     }}
                     className="w-6 h-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
@@ -499,6 +514,23 @@ const EntryForm: React.FC<EntryFormProps> = ({
           {/* Observations */}
           <div className="md:col-span-2">
              <label className="block text-sm font-semibold text-gray-700 mb-1">Observações</label>
+             
+             {/* Material Type Selection for M.O. Entries */}
+             {isService && movementType === 'entrada' && (
+                <div className="mb-3">
+                    <select 
+                        value={selectedMaterialTypeId}
+                        onChange={(e) => setSelectedMaterialTypeId(e.target.value)}
+                        className={`${inputClass} border-dashed border-blue-300 text-sm`}
+                    >
+                        <option value="">-- Selecione o Tipo de Material (Opcional) --</option>
+                        {registeredProducts.map(p => (
+                            <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                        ))}
+                    </select>
+                </div>
+             )}
+
              <textarea 
                 name="observations" 
                 value={formData.observations} 
