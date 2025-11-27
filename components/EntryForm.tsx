@@ -481,6 +481,28 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 placeholder="Automático" 
             />
           </div>
+
+          {/* Material Type Selection for M.O. Entries - MOVED HERE AS REQUESTED */}
+          {isService && movementType === 'entrada' && (
+            <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-blue-800 mb-1">
+                    Tipo de Material (Entrada de M.O.)
+                </label>
+                <select 
+                    value={selectedMaterialTypeId}
+                    onChange={(e) => setSelectedMaterialTypeId(e.target.value)}
+                    className={`${inputClass} border-blue-300 bg-blue-50 text-gray-800`}
+                >
+                    <option value="">-- Selecione o Material Físico (Opcional) --</option>
+                    {registeredProducts.map(p => (
+                        <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                    ))}
+                </select>
+                <p className="text-xs text-blue-600 mt-1">
+                    Selecione qual material está sendo recebido para este serviço (ex: Borra de Cobre, Sucata).
+                </p>
+            </div>
+          )}
           
           <div className="md:col-span-2 grid grid-cols-2 gap-4">
              <div>
@@ -514,23 +536,6 @@ const EntryForm: React.FC<EntryFormProps> = ({
           {/* Observations */}
           <div className="md:col-span-2">
              <label className="block text-sm font-semibold text-gray-700 mb-1">Observações</label>
-             
-             {/* Material Type Selection for M.O. Entries */}
-             {isService && movementType === 'entrada' && (
-                <div className="mb-3">
-                    <select 
-                        value={selectedMaterialTypeId}
-                        onChange={(e) => setSelectedMaterialTypeId(e.target.value)}
-                        className={`${inputClass} border-dashed border-blue-300 text-sm`}
-                    >
-                        <option value="">-- Selecione o Tipo de Material (Opcional) --</option>
-                        {registeredProducts.map(p => (
-                            <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
-                        ))}
-                    </select>
-                </div>
-             )}
-
              <textarea 
                 name="observations" 
                 value={formData.observations} 
