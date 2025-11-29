@@ -115,6 +115,15 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
     return matchesSearch && matchesFilter;
   });
 
+  // Calculate Totals for the filtered view
+  const totalStockQuantity = useMemo(() => 
+    filteredStock.reduce((acc, item) => acc + item.totalQuantity, 0),
+  [filteredStock]);
+
+  const totalStockValue = useMemo(() => 
+    filteredStock.reduce((acc, item) => acc + item.totalValue, 0),
+  [filteredStock]);
+
   const handleFilterTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFilterType(e.target.value as any);
     setFilterValue(''); // Reset value when type changes
@@ -223,63 +232,82 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
 
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex-1 flex flex-col overflow-hidden print:border-none print:shadow-none print:overflow-visible">
         {/* Controls Bar */}
-        <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row items-start md:items-center gap-4 bg-white no-print">
+        <div className="p-4 border-b border-gray-200 flex flex-col gap-4 bg-white no-print">
           
-          {/* Filter Controls */}
-          <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-100">
-              <div className="flex items-center gap-2 text-green-800 font-bold px-2">
-                <Filter size={18} />
-                <span className="text-sm uppercase tracking-wide">Filtrar:</span>
-              </div>
-              
-              <select 
-                value={filterType}
-                onChange={handleFilterTypeChange}
-                className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="none">Todos</option>
-                <option value="supplier">Por Fornecedor</option>
-                <option value="product">Por Produto</option>
-              </select>
-
-              {filterType !== 'none' && (
-                <select
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                  className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500 min-w-[200px]"
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            {/* Filter Controls */}
+            <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-100">
+                <div className="flex items-center gap-2 text-green-800 font-bold px-2">
+                  <Filter size={18} />
+                  <span className="text-sm uppercase tracking-wide">Filtrar:</span>
+                </div>
+                
+                <select 
+                  value={filterType}
+                  onChange={handleFilterTypeChange}
+                  className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="">-- Selecione --</option>
-                  {filterType === 'supplier' && uniqueSuppliers.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                  {filterType === 'product' && uniqueProducts.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
+                  <option value="none">Todos</option>
+                  <option value="supplier">Por Fornecedor</option>
+                  <option value="product">Por Produto</option>
                 </select>
-              )}
 
-              {(filterType !== 'none' || searchTerm) && (
-                <button 
-                  onClick={clearFilters}
-                  className="ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition"
-                  title="Limpar Filtros"
-                >
-                  <XCircle size={20} />
-                </button>
-              )}
-            </div>
+                {filterType !== 'none' && (
+                  <select
+                    value={filterValue}
+                    onChange={(e) => setFilterValue(e.target.value)}
+                    className="bg-white border border-green-200 text-gray-700 text-sm rounded-md p-2 outline-none focus:ring-2 focus:ring-green-500 min-w-[200px]"
+                  >
+                    <option value="">-- Selecione --</option>
+                    {filterType === 'supplier' && uniqueSuppliers.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                    {filterType === 'product' && uniqueProducts.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                )}
 
-            {/* Search Bar */}
-            <div className="flex-1 w-full md:w-auto flex items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-200 px-4">
-              <Search className="text-gray-400" size={20} />
-              <input 
-                type="text" 
-                placeholder="Buscar por produto, código, lote ou fornecedor..." 
-                className="bg-transparent outline-none flex-1 text-gray-700 placeholder-gray-400"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+                {(filterType !== 'none' || searchTerm) && (
+                  <button 
+                    onClick={clearFilters}
+                    className="ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition"
+                    title="Limpar Filtros"
+                  >
+                    <XCircle size={20} />
+                  </button>
+                )}
+              </div>
+
+              {/* Search Bar */}
+              <div className="flex-1 w-full md:w-auto flex items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-200 px-4">
+                <Search className="text-gray-400" size={20} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por produto, código, lote ou fornecedor..." 
+                  className="bg-transparent outline-none flex-1 text-gray-700 placeholder-gray-400"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+          </div>
+
+          {/* Totals Summary */}
+          <div className="flex items-center gap-6 pt-1">
+             <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500 uppercase font-bold text-xs">Quantidade Total:</span>
+                <span className="font-mono font-bold text-green-700 bg-green-50 px-3 py-1 rounded border border-green-100">
+                  {totalStockQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg
+                </span>
+             </div>
+             <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500 uppercase font-bold text-xs">Valor Total:</span>
+                <span className="font-mono font-bold text-green-700 bg-green-50 px-3 py-1 rounded border border-green-100">
+                  {totalStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+             </div>
+          </div>
+
         </div>
 
         {/* Table Header */}

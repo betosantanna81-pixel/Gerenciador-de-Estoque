@@ -11,6 +11,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImport }) => {
+  // State for accordion groups
   const [openEstoque, setOpenEstoque] = useState(true);
   const [openLancamentos, setOpenLancamentos] = useState(true);
   const [openCadastros, setOpenCadastros] = useState(false);
@@ -18,7 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper to determine if a parent section should be highlighted
+  // Helper to determine if a parent section should be highlighted based on current view
   const isEstoqueActive = ['stock', 'stock_mo', 'list', 'production_orders'].includes(currentView);
   const isLancamentosActive = ['entry', 'processes', 'analysis'].includes(currentView);
   const isCadastrosActive = ['suppliers', 'clients', 'products', 'services_registry', 'operations'].includes(currentView);
@@ -86,6 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
       {/* Navigation */}
       <nav className="flex-1 w-full space-y-1">
         
+        {/* DASHBOARD */}
         <MenuItem 
           icon={LayoutDashboard} 
           label="Dashboard" 
