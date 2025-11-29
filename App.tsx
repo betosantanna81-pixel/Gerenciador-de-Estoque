@@ -584,13 +584,27 @@ function App() {
         // 3. Cad_Produtos -> registeredProducts
         const prodSheet = findSheet(['Cad_Produtos', 'Produtos']);
         if (prodSheet) {
-            setRegisteredProducts(XLSX.utils.sheet_to_json(prodSheet));
+            const raw = XLSX.utils.sheet_to_json(prodSheet);
+            // Map raw Excel data to ProductEntity structure to handle variations in headers
+            const mappedProducts: ProductEntity[] = raw.map((r: any) => ({
+                id: findValue(r, ['id']) || crypto.randomUUID(),
+                name: findValue(r, ['name', 'nome', 'nome do produto', 'produto']) || '',
+                code: (findValue(r, ['code', 'código', 'cod', 'codigo']) || '').toString()
+            }));
+            setRegisteredProducts(mappedProducts);
         }
 
         // 4. Cad_Servico -> registeredServices
         const servSheet = findSheet(['Cad_Servico', 'Servicos', 'Serviços']);
         if (servSheet) {
-            setRegisteredServices(XLSX.utils.sheet_to_json(servSheet));
+            const raw = XLSX.utils.sheet_to_json(servSheet);
+            const mappedServices: ServiceEntity[] = raw.map((r: any) => ({
+                id: findValue(r, ['id']) || crypto.randomUUID(),
+                name: findValue(r, ['name', 'nome', 'serviço', 'nome do serviço']) || '',
+                code: (findValue(r, ['code', 'código', 'cod', 'codigo']) || '').toString(),
+                defaultPrice: Number(findValue(r, ['defaultPrice', 'preço', 'valor', 'valor padrão']) || 0)
+            }));
+            setRegisteredServices(mappedServices);
         }
 
         // 5. OP -> productionOrders
