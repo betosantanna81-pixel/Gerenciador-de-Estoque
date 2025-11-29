@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { LayoutDashboard, List, Settings, ChevronDown, ChevronRight, FolderPlus, DownloadCloud, UploadCloud, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Box, FilePlus, FolderPlus, DollarSign, ChevronDown, ChevronRight, DownloadCloud, UploadCloud } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface SidebarProps {
@@ -12,22 +12,23 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImport }) => {
   const [openEstoque, setOpenEstoque] = useState(true);
+  const [openLancamentos, setOpenLancamentos] = useState(true);
   const [openCadastros, setOpenCadastros] = useState(false);
-  const [openServicos, setOpenServicos] = useState(false);
-  const [openOutros, setOpenOutros] = useState(false);
+  const [openFinanceiro, setOpenFinanceiro] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to determine if a parent section should be highlighted
-  const isEstoqueActive = currentView === 'entry' || currentView === 'list' || currentView === 'stock';
-  const isCadastrosActive = ['suppliers', 'clients', 'products', 'operations'].includes(currentView);
-  const isServicosActive = ['stock_mo', 'billing_mo', 'services_registry'].includes(currentView);
-  const isOutrosActive = ['analysis', 'processes', 'production_orders'].includes(currentView);
+  const isEstoqueActive = ['stock', 'stock_mo', 'list', 'production_orders'].includes(currentView);
+  const isLancamentosActive = ['entry', 'processes', 'analysis'].includes(currentView);
+  const isCadastrosActive = ['suppliers', 'clients', 'products', 'services_registry', 'operations'].includes(currentView);
+  const isFinanceiroActive = ['billing_mo'].includes(currentView);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
 
-  const MenuItem = ({ id, icon: Icon, label, active, onClick, disabled, isSubItem = false }: any) => {
+  const MenuItem = ({ icon: Icon, label, active, onClick, disabled }: any) => {
     const baseClasses = "flex items-center gap-4 w-full transition-all duration-300 relative group";
     
     if (active) {
@@ -86,14 +87,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
       <nav className="flex-1 w-full space-y-1">
         
         <MenuItem 
-          id="dashboard" 
           icon={LayoutDashboard} 
           label="Dashboard" 
           active={currentView === 'dashboard'} 
           onClick={() => setView('dashboard')} 
         />
 
-        {/* Accordion Group: Estoque */}
+        {/* 1. Estoque */}
         <div className="relative">
              <button 
                 onClick={() => setOpenEstoque(!openEstoque)}
@@ -102,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
                 `}
              >
                 <div className="flex items-center gap-4">
-                    <List size={20} />
+                    <Box size={20} />
                     <span>Estoque</span>
                 </div>
                 {openEstoque ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -110,34 +110,35 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
 
              <div className={`overflow-hidden transition-all duration-300 ${openEstoque ? 'max-h-56 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <SubMenuItem label="Estoque Atual" active={currentView === 'stock'} onClick={() => setView('stock')} />
-                <SubMenuItem label="Movimentação" active={currentView === 'entry'} onClick={() => setView('entry')} />
+                <SubMenuItem label="Estoque M.O." active={currentView === 'stock_mo'} onClick={() => setView('stock_mo')} />
                 <SubMenuItem label="Entrada/Saída" active={currentView === 'list'} onClick={() => setView('list')} />
+                <SubMenuItem label="Ordens de Produção" active={currentView === 'production_orders'} onClick={() => setView('production_orders')} />
              </div>
         </div>
 
-        {/* Accordion Group: Serviços */}
+        {/* 2. Lançamentos */}
         <div className="relative">
              <button 
-                onClick={() => setOpenServicos(!openServicos)}
+                onClick={() => setOpenLancamentos(!openLancamentos)}
                 className={`flex items-center justify-between w-full px-8 py-4 text-emerald-100/70 hover:text-white transition-colors uppercase text-sm font-medium
-                    ${isServicosActive && !openServicos ? 'text-white font-bold' : ''}
+                    ${isLancamentosActive && !openLancamentos ? 'text-white font-bold' : ''}
                 `}
              >
                 <div className="flex items-center gap-4">
-                    <Briefcase size={20} />
-                    <span>Serviços</span>
+                    <FilePlus size={20} />
+                    <span>Lançamentos</span>
                 </div>
-                {openServicos ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {openLancamentos ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
              </button>
 
-             <div className={`overflow-hidden transition-all duration-300 ${openServicos ? 'max-h-56 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <SubMenuItem label="Estoque de M.O" active={currentView === 'stock_mo'} onClick={() => setView('stock_mo')} />
-                <SubMenuItem label="Cobrança M.O" active={currentView === 'billing_mo'} onClick={() => setView('billing_mo')} />
-                <SubMenuItem label="Cadastro Tipo Serviços" active={currentView === 'services_registry'} onClick={() => setView('services_registry')} />
+             <div className={`overflow-hidden transition-all duration-300 ${openLancamentos ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <SubMenuItem label="Movimentação" active={currentView === 'entry'} onClick={() => setView('entry')} />
+                <SubMenuItem label="Novo Processo" active={currentView === 'processes'} onClick={() => setView('processes')} />
+                <SubMenuItem label="Análises" active={currentView === 'analysis'} onClick={() => setView('analysis')} />
              </div>
         </div>
 
-        {/* Accordion Group: Cadastros */}
+        {/* 3. Cadastros */}
         <div className="relative">
              <button 
                 onClick={() => setOpenCadastros(!openCadastros)}
@@ -156,29 +157,28 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
                 <SubMenuItem label="Fornecedores" active={currentView === 'suppliers'} onClick={() => setView('suppliers')} />
                 <SubMenuItem label="Clientes" active={currentView === 'clients'} onClick={() => setView('clients')} />
                 <SubMenuItem label="Produtos" active={currentView === 'products'} onClick={() => setView('products')} />
+                <SubMenuItem label="Tipo Serviços" active={currentView === 'services_registry'} onClick={() => setView('services_registry')} />
                 <SubMenuItem label="Operações" active={currentView === 'operations'} onClick={() => setView('operations')} />
              </div>
         </div>
 
-        {/* Accordion Group: Outros */}
+        {/* 4. Financeiro */}
         <div className="relative">
              <button 
-                onClick={() => setOpenOutros(!openOutros)}
+                onClick={() => setOpenFinanceiro(!openFinanceiro)}
                 className={`flex items-center justify-between w-full px-8 py-4 text-emerald-100/70 hover:text-white transition-colors uppercase text-sm font-medium
-                    ${isOutrosActive && !openOutros ? 'text-white font-bold' : ''}
+                    ${isFinanceiroActive && !openFinanceiro ? 'text-white font-bold' : ''}
                 `}
              >
                 <div className="flex items-center gap-4">
-                    <Settings size={20} />
-                    <span>Outros</span>
+                    <DollarSign size={20} />
+                    <span>Financeiro</span>
                 </div>
-                {openOutros ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {openFinanceiro ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
              </button>
 
-             <div className={`overflow-hidden transition-all duration-300 ${openOutros ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <SubMenuItem label="Análises" active={currentView === 'analysis'} onClick={() => setView('analysis')} />
-                <SubMenuItem label="Novo Processo" active={currentView === 'processes'} onClick={() => setView('processes')} />
-                <SubMenuItem label="Ordens de Produção" active={currentView === 'production_orders'} onClick={() => setView('production_orders')} />
+             <div className={`overflow-hidden transition-all duration-300 ${openFinanceiro ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <SubMenuItem label="Cobrança M.O" active={currentView === 'billing_mo'} onClick={() => setView('billing_mo')} />
              </div>
         </div>
 
