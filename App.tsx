@@ -550,7 +550,7 @@ function App() {
 
         const mapEntityFromImport = (r: any): RegistryEntity => ({
             id: findValue(r, ['id']) || crypto.randomUUID(),
-            code: findValue(r, ['code', 'código', 'cod']) || '',
+            code: (findValue(r, ['code', 'código', 'cod']) || '').toString().padStart(3, '0'),
             name: findValue(r, ['name', 'nome']) || '',
             contact: findValue(r, ['contact', 'contato']) || '',
             cnpj: findValue(r, ['cnpj']) || '',
@@ -589,7 +589,7 @@ function App() {
             const mappedProducts: ProductEntity[] = raw.map((r: any) => ({
                 id: findValue(r, ['id']) || crypto.randomUUID(),
                 name: findValue(r, ['name', 'nome', 'nome do produto', 'produto']) || '',
-                code: (findValue(r, ['code', 'código', 'cod', 'codigo']) || '').toString()
+                code: (findValue(r, ['code', 'código', 'cod', 'codigo']) || '').toString().padStart(3, '0')
             }));
             setRegisteredProducts(mappedProducts);
         }
@@ -601,7 +601,7 @@ function App() {
             const mappedServices: ServiceEntity[] = raw.map((r: any) => ({
                 id: findValue(r, ['id']) || crypto.randomUUID(),
                 name: findValue(r, ['name', 'nome', 'serviço', 'nome do serviço']) || '',
-                code: (findValue(r, ['code', 'código', 'cod', 'codigo']) || '').toString(),
+                code: (findValue(r, ['code', 'código', 'cod', 'codigo']) || '').toString().padStart(3, '0'),
                 defaultPrice: Number(findValue(r, ['defaultPrice', 'preço', 'valor', 'valor padrão']) || 0)
             }));
             setRegisteredServices(mappedServices);
