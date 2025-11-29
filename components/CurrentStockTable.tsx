@@ -20,7 +20,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
   });
 
   const stockData = useMemo(() => {
-    // Group by Batch ID instead of Product Code to allow specific batch tracking
+    // Group by Batch ID
     const grouped: Record<string, {
       batchId: string;
       productName: string;
@@ -28,11 +28,10 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
       totalQuantity: number;
       unitCost: number;
       observations: string;
-      supplier: string; // Add supplier tracking for filtering
+      supplier: string;
     }> = {};
 
     items.forEach(item => {
-      // Use batchId as key. If missing (legacy data), fallback to productCode or a generic placeholder
       const key = item.batchId || `UNKNOWN-${item.productCode}`;
       
       if (!grouped[key]) {
@@ -43,7 +42,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
           totalQuantity: 0,
           unitCost: 0,
           observations: '',
-          supplier: '', // Initialize empty
+          supplier: '',
         };
       }
 
@@ -52,9 +51,8 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
 
       if (isEntry) {
         grouped[key].totalQuantity += item.quantity;
-        grouped[key].unitCost = item.unitCost; // Entry defines the cost
-        grouped[key].supplier = item.supplier; // Capture supplier from entry
-        // Capture observation from the entry movement
+        grouped[key].unitCost = item.unitCost;
+        grouped[key].supplier = item.supplier;
         if (item.observations) {
             grouped[key].observations = item.observations;
         }
@@ -64,18 +62,14 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
     });
 
     return Object.values(grouped)
-      .filter(group => group.totalQuantity > 0.0001) // Filter out zero or negative stock (floating point tolerance)
+      .filter(group => group.totalQuantity > 0.0001)
       .map(group => {
-         // Calculate Estimated Value: Current Qty * Unit Cost from Entry
          const estimatedValue = group.totalQuantity * group.unitCost;
-
-         // Find analysis based on Batch ID first, fallback to Product Code if necessary (or just Batch ID as per requirement)
          const analysis = analyses.find(a => a.batchId === group.batchId) || analyses.find(a => !a.batchId && a.productCode === group.productCode);
          
-         // Ensure default includes 'fe'
          const safeAnalysis = analysis 
-            ? { ...analysis, fe: (analysis as any).fe || 0 }
-            : { cu:0, zn:0, mn:0, b:0, pb:0, fe:0, cd:0, h2o:0, mesh35:0, ret:0 };
+            ? { ...analysis }
+            : { cu_ar:0, zn_ar:0, cu_hcl:0, zn_hcl:0, mn:0, b:0, cu_2:0, zn_2:0, mn_2:0, b_2:0, pb:0, fe:0, cd:0, h2o:0, mesh35:0, ret:0 };
 
          return {
            ...group,
@@ -86,7 +80,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
 
   }, [items, analyses]);
 
-  // Extract unique values for filters based on current stock
+  // Filters
   const uniqueSuppliers = useMemo(() => 
     Array.from(new Set(stockData.map(i => i.supplier))).filter(Boolean).sort(), 
   [stockData]);
@@ -96,7 +90,6 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
   [stockData]);
 
   const filteredStock = stockData.filter(item => {
-    // 1. Text Search Match
     const matchesSearch = 
       searchTerm === '' ||
       item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -104,7 +97,6 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
       item.batchId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // 2. Category Filter Match
     let matchesFilter = true;
     if (filterType === 'supplier' && filterValue) {
       matchesFilter = item.supplier === filterValue;
@@ -115,7 +107,6 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
     return matchesSearch && matchesFilter;
   });
 
-  // Calculate Totals for the filtered view
   const totalStockQuantity = useMemo(() => 
     filteredStock.reduce((acc, item) => acc + item.totalQuantity, 0),
   [filteredStock]);
@@ -126,7 +117,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
 
   const handleFilterTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFilterType(e.target.value as any);
-    setFilterValue(''); // Reset value when type changes
+    setFilterValue('');
   };
 
   const clearFilters = () => {
@@ -139,8 +130,8 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
     window.print();
   };
 
-  // Helper to format percentage/ppm
-  const fmt = (val: number | undefined, isPpm = false) => {
+  // Helper to format
+  const fmt = (val: number | undefined | null, isPpm = false) => {
     if (val === undefined || val === null) return '-';
     return isPpm ? `${val}` : `${val}%`;
   };
@@ -159,59 +150,39 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
             print-color-adjust: exact;
             background-color: white !important;
           }
-          /* Hide Sidebar */
-          .fixed.left-0 {
+          .fixed.left-0, .no-print {
             display: none !important;
           }
-          /* Reset Main Content Layout */
           main {
             margin-left: 0 !important;
             padding: 0 !important;
             width: 100% !important;
           }
-          /* Hide Non-printable Elements */
-          .no-print {
-            display: none !important;
-          }
-          /* Remove Shadows/Borders for clean print */
-          .shadow-lg {
-            box-shadow: none !important;
-          }
-          .border {
-            border: none !important;
-          }
-          .rounded-xl, .rounded-lg {
-            border-radius: 0 !important;
-          }
-          /* Adjust Containers */
-          .h-screen {
-            height: auto !important;
-          }
-          .overflow-hidden {
-            overflow: visible !important;
-          }
-          .overflow-x-auto {
-            overflow: visible !important;
-          }
-          /* Table Styling */
+          .shadow-lg { box-shadow: none !important; }
+          .border { border: none !important; }
+          .rounded-xl, .rounded-lg { border-radius: 0 !important; }
+          .h-screen { height: auto !important; }
+          .overflow-hidden { overflow: visible !important; }
+          .overflow-x-auto { overflow: visible !important; }
           table {
             width: 100% !important;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 9px; 
           }
           thead th {
-            background-color: #064e3b !important;
             color: white !important;
             border: 1px solid #000;
             padding: 4px !important;
+            text-align: center;
           }
           tbody td {
             border: 1px solid #ccc;
-            padding: 4px !important;
+            padding: 2px !important;
+            text-align: center;
           }
-          tbody tr:nth-child(even) {
-            background-color: #f0fdf4 !important;
-          }
+          tbody td.text-left { text-align: left; }
+          tbody td.text-right { text-align: right; }
+          tbody tr:nth-child(even) { background-color: #f0fdf4 !important; }
         }
       `}</style>
 
@@ -235,7 +206,6 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
         <div className="p-4 border-b border-gray-200 flex flex-col gap-4 bg-white no-print">
           
           <div className="flex flex-col md:flex-row items-center gap-4">
-            {/* Filter Controls */}
             <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-100">
                 <div className="flex items-center gap-2 text-green-800 font-bold px-2">
                   <Filter size={18} />
@@ -279,7 +249,6 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                 )}
               </div>
 
-              {/* Search Bar */}
               <div className="flex-1 w-full md:w-auto flex items-center gap-3 bg-gray-50 p-2 rounded-lg border border-gray-200 px-4">
                 <Search className="text-gray-400" size={20} />
                 <input 
@@ -292,17 +261,16 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
               </div>
           </div>
 
-          {/* Totals Summary */}
-          <div className="flex items-center gap-6 pt-1">
-             <div className="flex items-center gap-2 text-sm">
+          <div className="flex flex-col md:flex-row items-center gap-6 pt-1">
+             <div className="flex items-center gap-2 text-sm bg-green-50 px-4 py-2 rounded-lg border border-green-100 shadow-sm w-full md:w-auto">
                 <span className="text-gray-500 uppercase font-bold text-xs">Quantidade Total:</span>
-                <span className="font-mono font-bold text-green-700 bg-green-50 px-3 py-1 rounded border border-green-100">
+                <span className="font-mono font-bold text-green-700 text-lg">
                   {totalStockQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} Kg
                 </span>
              </div>
-             <div className="flex items-center gap-2 text-sm">
+             <div className="flex items-center gap-2 text-sm bg-green-50 px-4 py-2 rounded-lg border border-green-100 shadow-sm w-full md:w-auto">
                 <span className="text-gray-500 uppercase font-bold text-xs">Valor Total:</span>
-                <span className="font-mono font-bold text-green-700 bg-green-50 px-3 py-1 rounded border border-green-100">
+                <span className="font-mono font-bold text-green-700 text-lg">
                   {totalStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </span>
              </div>
@@ -313,78 +281,113 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
         {/* Table Header */}
         <div className="overflow-x-auto flex-1 print:overflow-visible">
           <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead className="bg-emerald-800 text-white sticky top-0 z-10 print:static">
+            <thead className="text-white sticky top-0 z-10 print:static text-[10px] md:text-xs">
+              {/* Group Headers */}
               <tr>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider">Cód.</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider">Lote</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider">Produto</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center">Saldo (Kg)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-right">V. Estimado</th>
+                <th colSpan={6} className="bg-green-800 p-2 border border-green-900 text-center uppercase tracking-widest font-bold">INFORMAÇÕES GERAIS</th>
+                <th colSpan={2} className="bg-orange-500 p-2 border border-orange-600 text-center uppercase tracking-widest font-bold">Água Régia</th>
+                <th colSpan={4} className="bg-yellow-500 p-2 border border-yellow-600 text-center text-yellow-900 uppercase tracking-widest font-bold">HCL</th>
+                <th colSpan={4} className="bg-blue-300 p-2 border border-blue-400 text-center text-blue-900 uppercase tracking-widest font-bold">2º Extrator</th>
+                <th colSpan={3} className="bg-red-600 p-2 border border-red-700 text-center uppercase tracking-widest font-bold">Contaminantes</th>
+                <th colSpan={3} className="bg-purple-300 p-2 border border-purple-400 text-center text-purple-900 uppercase tracking-widest font-bold">Outros</th>
+                <th className="bg-gray-700 p-2 border border-gray-800 text-center"></th>
+              </tr>
+              {/* Column Headers */}
+              <tr className="bg-emerald-900">
+                <th className="p-2 font-semibold border-r border-emerald-800">Lote</th>
+                <th className="p-2 font-semibold border-r border-emerald-800">Produto</th>
+                <th className="p-2 font-semibold border-r border-emerald-800">Código</th>
+                <th className="p-2 font-semibold border-r border-emerald-800">Fornecedor</th>
+                <th className="p-2 font-semibold text-center border-r border-emerald-800">Saldo (Kg)</th>
+                <th className="p-2 font-semibold text-right border-r border-emerald-800">V. Estimado</th>
                 
-                {/* Analysis Columns */}
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900 border-l border-emerald-700">Cu (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Zn (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Mn (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">B (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Pb (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Fe (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Cd (ppm)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">H2O (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">#35 (%)</th>
-                <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center bg-emerald-900">Ret. (%)</th>
+                {/* Agua Regia */}
+                <th className="p-2 font-semibold text-center bg-orange-600 border-r border-orange-700">Cu (%) AR</th>
+                <th className="p-2 font-semibold text-center bg-orange-600 border-r border-orange-700">Zn (%) AR</th>
+
+                {/* HCL */}
+                <th className="p-2 font-semibold text-center bg-yellow-600 border-r border-yellow-700">Cu (%) HCL</th>
+                <th className="p-2 font-semibold text-center bg-yellow-600 border-r border-yellow-700">Zn (%) HCL</th>
+                <th className="p-2 font-semibold text-center bg-yellow-600 border-r border-yellow-700">Mn (%)</th>
+                <th className="p-2 font-semibold text-center bg-yellow-600 border-r border-yellow-700">B (%)</th>
+
+                {/* 2 Extrator */}
+                <th className="p-2 font-semibold text-center bg-blue-400 border-r border-blue-500">Cu (%) 2</th>
+                <th className="p-2 font-semibold text-center bg-blue-400 border-r border-blue-500">Zn (%) 2</th>
+                <th className="p-2 font-semibold text-center bg-blue-400 border-r border-blue-500">Mn (%) 2</th>
+                <th className="p-2 font-semibold text-center bg-blue-400 border-r border-blue-500">B (%) 2</th>
+
+                {/* Contaminantes */}
+                <th className="p-2 font-semibold text-center bg-red-700 border-r border-red-800">Pb (%)</th>
+                <th className="p-2 font-semibold text-center bg-red-700 border-r border-red-800">Fe (%)</th>
+                <th className="p-2 font-semibold text-center bg-red-700 border-r border-red-800">Cd (ppm)</th>
+
+                {/* Outros */}
+                <th className="p-2 font-semibold text-center bg-purple-400 border-r border-purple-500">H2O (%)</th>
+                <th className="p-2 font-semibold text-center bg-purple-400 border-r border-purple-500">#35 (%)</th>
+                <th className="p-2 font-semibold text-center bg-purple-400 border-r border-purple-500">Ret. (%)</th>
+
+                <th className="p-2 font-semibold text-center">Obs.</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 text-[11px]">
               {filteredStock.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="p-8 text-center text-gray-400">Nenhum produto em estoque correspondente.</td>
+                  <td colSpan={23} className="p-8 text-center text-gray-400">Nenhum produto em estoque correspondente.</td>
                 </tr>
               ) : (
                 filteredStock.map((item) => (
                   <tr key={item.batchId} className="hover:bg-green-50 transition-colors group">
-                    <td className="p-3 text-sm font-mono text-gray-500">{item.productCode}</td>
-                    <td className="p-3 text-sm font-mono font-bold text-green-700">{item.batchId}</td>
-                    <td className="p-3 text-sm text-gray-800 font-bold flex items-center gap-2">
-                      {item.productName}
-                      {item.supplier && (
-                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 print:hidden">
-                           {item.supplier}
+                    <td className="p-2 font-mono font-bold text-green-700 border-r border-gray-100">{item.batchId}</td>
+                    <td className="p-2 font-bold text-gray-800 border-r border-gray-100">{item.productName}</td>
+                    <td className="p-2 font-mono text-gray-500 border-r border-gray-100">{item.productCode}</td>
+                    <td className="p-2 text-gray-600 border-r border-gray-100">{item.supplier}</td>
+                    <td className="p-2 text-center border-r border-gray-100">
+                        <span className={`px-1.5 py-0.5 rounded font-bold ${item.totalQuantity > 0 ? 'text-green-800 bg-green-50' : 'text-red-800'}`}>
+                           {item.totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </span>
-                      )}
-                      {item.supplier && (
-                         // Visible only on print to ensure supplier name is readable
-                         <span className="hidden print:inline text-[10px] text-gray-500 ml-1">({item.supplier})</span>
-                      )}
+                    </td>
+                    <td className="p-2 text-right font-medium text-gray-700 border-r border-gray-100">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalValue)}
+                    </td>
+                    
+                    {/* AR */}
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.cu_ar)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.zn_ar)}</td>
+
+                    {/* HCL */}
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.cu_hcl)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.zn_hcl)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.mn)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.b)}</td>
+
+                    {/* 2 Extrator */}
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.cu_2)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.zn_2)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.mn_2)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.b_2)}</td>
+
+                    {/* Contam */}
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.pb)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.fe)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.cd, true)}</td>
+
+                    {/* Outros */}
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.h2o)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.mesh35)}</td>
+                    <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.ret)}</td>
+
+                    <td className="p-2 text-center">
                       {item.observations && (
                         <button 
                           onClick={() => setObsModal({ isOpen: true, text: item.observations, title: `Obs: ${item.productName} (${item.batchId})` })}
                           className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 p-1 rounded-full transition-colors no-print"
                           title="Ver Observações"
                         >
-                          <MessageSquareText size={16} />
+                          <MessageSquareText size={14} />
                         </button>
                       )}
                     </td>
-                    <td className="p-3 text-center">
-                        <span className={`px-2 py-1 rounded text-sm font-bold ${item.totalQuantity > 0 ? 'text-green-800' : 'text-red-800'}`}>
-                           {item.totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
-                        </span>
-                    </td>
-                    <td className="p-3 text-sm text-right font-medium text-gray-700">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalValue)}
-                    </td>
-                    
-                    {/* Analysis Data */}
-                    <td className="p-3 text-xs text-center border-l border-gray-100">{fmt(item.analysis.cu)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.zn)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.mn)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.b)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.pb)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.fe)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.cd, true)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.h2o)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.mesh35)}</td>
-                    <td className="p-3 text-xs text-center">{fmt(item.analysis.ret)}</td>
                   </tr>
                 ))
               )}

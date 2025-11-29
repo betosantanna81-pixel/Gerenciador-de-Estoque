@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell
+  BarChart, Bar, Cell, LabelList
 } from 'recharts';
 import StatsCard from './StatsCard';
 import { InventoryItem } from '../types';
@@ -122,6 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ items }) => {
     
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
+      .filter(i => i.value > 0.001) // Only positive stock
       .sort((a, b) => b.value - a.value)
       .slice(0, 7); // Top 7
   }, [items]);
@@ -201,16 +202,21 @@ const Dashboard: React.FC<DashboardProps> = ({ items }) => {
                 <YAxis 
                   dataKey="name" 
                   type="category" 
-                  tick={{ fill: '#fff', fontSize: 12, fontWeight: 500 }} 
+                  tick={{ fill: '#fff', fontSize: 11, fontWeight: 500 }} 
                   width={100}
                   tickLine={false}
                   axisLine={false}
                 />
-                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ color: '#000' }}/>
-                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={15}>
+                <Tooltip 
+                    cursor={{fill: 'transparent'}} 
+                    contentStyle={{ color: '#000', borderRadius: '8px' }}
+                    formatter={(value: any) => [`${value.toLocaleString()} Kg`, 'Quantidade']}
+                />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
                   {barData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
+                  <LabelList dataKey="value" position="right" fill="#fff" fontSize={10} formatter={(val: number) => val.toLocaleString()} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

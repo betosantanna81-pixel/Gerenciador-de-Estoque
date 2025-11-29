@@ -377,7 +377,8 @@ function App() {
              const analysis = analyses.find(a => a.batchId === g.batchId) || 
                               analyses.find(a => !a.batchId && a.productCode === g.productCode) || 
                               {};
-                              
+             // Use proper defaults for export
+             const an = (analysis as any);
              return {
                  'Lote': g.batchId,
                  'Produto': g.productName,
@@ -385,16 +386,23 @@ function App() {
                  'Fornecedor': g.supplier,
                  'Saldo (Kg)': g.qty,
                  'V. Estimado': g.qty * g.unitCost,
-                 'Cu (%)': (analysis as any).cu || 0,
-                 'Zn (%)': (analysis as any).zn || 0,
-                 'Mn (%)': (analysis as any).mn || 0,
-                 'B (%)': (analysis as any).b || 0,
-                 'Pb (%)': (analysis as any).pb || 0,
-                 'Fe (%)': (analysis as any).fe || 0,
-                 'Cd (ppm)': (analysis as any).cd || 0,
-                 'H2O (%)': (analysis as any).h2o || 0,
-                 '#35 (%)': (analysis as any).mesh35 || 0,
-                 'Ret. (%)': (analysis as any).ret || 0,
+                 // New specific fields
+                 'Cu (%) AR': an.cu_ar || 0,
+                 'Zn (%) AR': an.zn_ar || 0,
+                 'Cu (%) HCL': an.cu_hcl || 0,
+                 'Zn (%) HCL': an.zn_hcl || 0,
+                 'Mn (%)': an.mn || 0,
+                 'B (%)': an.b || 0,
+                 'Cu (%) 2': an.cu_2 || 0,
+                 'Zn (%) 2': an.zn_2 || 0,
+                 'Mn (%) 2': an.mn_2 || 0,
+                 'B (%) 2': an.b_2 || 0,
+                 'Pb (%)': an.pb || 0,
+                 'Fe (%)': an.fe || 0,
+                 'Cd (ppm)': an.cd || 0,
+                 'H2O (%)': an.h2o || 0,
+                 '#35 (%)': an.mesh35 || 0,
+                 'Ret. (%)': an.ret || 0,
                  'Observações': g.observations
              };
         });
@@ -585,7 +593,6 @@ function App() {
         const prodSheet = findSheet(['Cad_Produtos', 'Produtos']);
         if (prodSheet) {
             const raw = XLSX.utils.sheet_to_json(prodSheet);
-            // Map raw Excel data to ProductEntity structure to handle variations in headers
             const mappedProducts: ProductEntity[] = raw.map((r: any) => ({
                 id: findValue(r, ['id']) || crypto.randomUUID(),
                 name: findValue(r, ['name', 'nome', 'nome do produto', 'produto']) || '',
@@ -644,10 +651,18 @@ function App() {
             const loadedAnalyses: ProductAnalysis[] = rawStock.map((r: any) => ({
                 batchId: findValue(r, ['Lote']),
                 productCode: findValue(r, ['Código']) || '',
-                cu: Number(findValue(r, ['Cu (%)'])) || 0,
-                zn: Number(findValue(r, ['Zn (%)'])) || 0,
+                // New Fields
+                cu_ar: Number(findValue(r, ['Cu (%) AR', 'Cu AR'])) || 0,
+                zn_ar: Number(findValue(r, ['Zn (%) AR', 'Zn AR'])) || 0,
+                cu_hcl: Number(findValue(r, ['Cu (%) HCL', 'Cu HCL'])) || 0,
+                zn_hcl: Number(findValue(r, ['Zn (%) HCL', 'Zn HCL'])) || 0,
                 mn: Number(findValue(r, ['Mn (%)'])) || 0,
                 b: Number(findValue(r, ['B (%)'])) || 0,
+                cu_2: Number(findValue(r, ['Cu (%) 2', 'Cu 2'])) || 0,
+                zn_2: Number(findValue(r, ['Zn (%) 2', 'Zn 2'])) || 0,
+                mn_2: Number(findValue(r, ['Mn (%) 2', 'Mn 2'])) || 0,
+                b_2: Number(findValue(r, ['B (%) 2', 'B 2'])) || 0,
+                
                 pb: Number(findValue(r, ['Pb (%)'])) || 0,
                 fe: Number(findValue(r, ['Fe (%)'])) || 0,
                 cd: Number(findValue(r, ['Cd (ppm)'])) || 0,

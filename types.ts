@@ -21,16 +21,36 @@ export interface InventoryItem {
 export interface ProductAnalysis {
   batchId?: string; // Added to support analysis per batch
   productCode: string;
-  cu: number;
-  zn: number;
-  mn: number;
-  b: number;
+  
+  // Agua Régia
+  cu_ar: number;
+  zn_ar: number;
+
+  // HCL
+  cu_hcl: number;
+  zn_hcl: number;
+  mn: number; // Mn (%)
+  b: number;  // B (%)
+
+  // 2º Extrator
+  cu_2: number;
+  zn_2: number;
+  mn_2: number;
+  b_2: number;
+
+  // Contaminantes
   pb: number;
-  fe: number; // Added
+  fe: number; 
   cd: number; // ppm
+
+  // Outros
   h2o: number;
   mesh35: number;
   ret: number;
+  
+  // Legacy support (optional)
+  cu?: number;
+  zn?: number;
 }
 
 export interface RegistryEntity {
