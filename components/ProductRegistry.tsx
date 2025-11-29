@@ -147,11 +147,13 @@ const ProductRegistry: React.FC<ProductRegistryProps> = ({ data, onSave, onDelet
                   {data.length === 0 ? (
                      <tr><td colSpan={3} className="p-8 text-center text-gray-400">Nenhum produto cadastrado.</td></tr>
                   ) : (
-                     data.sort((a,b) => a.code.localeCompare(b.code)).map((item) => (
+                     // Create a copy to sort to avoid mutating props, and sort ascending by code
+                     [...data].sort((a,b) => a.code.localeCompare(b.code)).map((item) => (
                         <tr key={item.id} className="hover:bg-emerald-50/50 transition-colors group">
                            <td className="p-4">
                                 <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded font-mono font-bold border border-gray-200">
-                                    {item.code}
+                                    {/* Ensure visual 3-digit format even if data is raw */}
+                                    {item.code.toString().padStart(3, '0')}
                                 </span>
                            </td>
                            <td className="p-4 font-bold text-gray-700">{item.name}</td>
