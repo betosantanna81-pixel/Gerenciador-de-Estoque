@@ -1,14 +1,25 @@
 
 import React, { useMemo, useState } from 'react';
-import { InventoryItem, ProductAnalysis } from '../types';
-import { Search, PackageCheck, MessageSquareText, X, Filter, XCircle, Printer } from 'lucide-react';
+import { InventoryItem, ProductAnalysis, ServiceEntity } from '../types';
+import { Search, PackageCheck, MessageSquareText, X, Filter, XCircle, Printer, Trash2 } from 'lucide-react';
 
 interface CurrentStockTableProps {
   items: InventoryItem[];
   analyses: ProductAnalysis[];
+  isMoView?: boolean;
+  registeredServices?: ServiceEntity[];
+  onDeleteBatch?: (batchId: string) => void;
+  onUpdateBatchService?: (batchId: string, newServiceId: string) => void;
 }
 
-const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }) => {
+const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ 
+    items, 
+    analyses, 
+    isMoView = false, 
+    registeredServices = [], 
+    onDeleteBatch, 
+    onUpdateBatchService 
+}) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterType, setFilterType] = useState<'none' | 'supplier' | 'product'>('none');
   const [filterValue, setFilterValue] = useState('');
@@ -71,14 +82,26 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
             ? { ...analysis }
             : { cu_ar:0, zn_ar:0, cu_hcl:0, zn_hcl:0, mn:0, b:0, cu_2:0, zn_2:0, mn_2:0, b_2:0, pb:0, fe:0, cd:0, h2o:0, mesh35:0, ret:0 };
 
+         // MO Logic: Extract Physical Material Name from Obs
+         let displayProductName = group.productName;
+         if (isMoView) {
+             const match = group.observations.match(/Material Físico: ([^|]+)/);
+             if (match && match[1]) {
+                 displayProductName = match[1].trim();
+             } else {
+                 displayProductName = '---'; // Fallback if no material linked
+             }
+         }
+
          return {
            ...group,
+           displayProductName, // Used for M.O. "Product" column
            totalValue: estimatedValue,
            analysis: safeAnalysis
          };
       }).sort((a, b) => a.productName.localeCompare(b.productName));
 
-  }, [items, analyses]);
+  }, [items, analyses, isMoView]);
 
   // Filters
   const uniqueSuppliers = useMemo(() => 
@@ -86,13 +109,14 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
   [stockData]);
 
   const uniqueProducts = useMemo(() => 
-    Array.from(new Set(stockData.map(i => i.productName))).filter(Boolean).sort(), 
-  [stockData]);
+    Array.from(new Set(stockData.map(i => isMoView ? i.productName : i.displayProductName))).filter(Boolean).sort(), 
+  [stockData, isMoView]);
 
   const filteredStock = stockData.filter(item => {
     const matchesSearch = 
       searchTerm === '' ||
       item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.displayProductName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.productCode.includes(searchTerm) ||
       item.batchId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
@@ -101,7 +125,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
     if (filterType === 'supplier' && filterValue) {
       matchesFilter = item.supplier === filterValue;
     } else if (filterType === 'product' && filterValue) {
-      matchesFilter = item.productName === filterValue;
+      matchesFilter = (isMoView ? item.productName : item.displayProductName) === filterValue;
     }
 
     return matchesSearch && matchesFilter;
@@ -189,7 +213,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
       <div className="flex justify-between items-center mb-6 print:mb-2">
         <h2 className="text-2xl font-bold text-green-900 flex items-center gap-3">
           <PackageCheck size={28} />
-          Estoque Atual
+          {isMoView ? 'Estoque M.O.' : 'Estoque Atual'}
         </h2>
 
         <button 
@@ -219,7 +243,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                 >
                   <option value="none">Todos</option>
                   <option value="supplier">Por Fornecedor</option>
-                  <option value="product">Por Produto</option>
+                  <option value="product">Por Produto/Serviço</option>
                 </select>
 
                 {filterType !== 'none' && (
@@ -284,7 +308,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
             <thead className="text-white sticky top-0 z-10 print:static text-[10px] md:text-xs">
               {/* Group Headers */}
               <tr>
-                <th colSpan={6} className="bg-green-800 p-2 border border-green-900 text-center uppercase tracking-widest font-bold">INFORMAÇÕES GERAIS</th>
+                <th colSpan={isMoView ? 7 : 6} className="bg-green-800 p-2 border border-green-900 text-center uppercase tracking-widest font-bold">INFORMAÇÕES GERAIS</th>
                 <th colSpan={2} className="bg-orange-500 p-2 border border-orange-600 text-center uppercase tracking-widest font-bold">Água Régia</th>
                 <th colSpan={4} className="bg-yellow-500 p-2 border border-yellow-600 text-center text-yellow-900 uppercase tracking-widest font-bold">HCL</th>
                 <th colSpan={4} className="bg-blue-300 p-2 border border-blue-400 text-center text-blue-900 uppercase tracking-widest font-bold">2º Extrator</th>
@@ -296,6 +320,7 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
               <tr className="bg-emerald-900">
                 <th className="p-2 font-semibold border-r border-emerald-800">Lote</th>
                 <th className="p-2 font-semibold border-r border-emerald-800">Produto</th>
+                {isMoView && <th className="p-2 font-semibold border-r border-emerald-800">Tipo de Serviço</th>}
                 <th className="p-2 font-semibold border-r border-emerald-800">Código</th>
                 <th className="p-2 font-semibold border-r border-emerald-800">Fornecedor</th>
                 <th className="p-2 font-semibold text-center border-r border-emerald-800">Saldo (Kg)</th>
@@ -327,19 +352,44 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                 <th className="p-2 font-semibold text-center bg-purple-400 border-r border-purple-500">#35 (%)</th>
                 <th className="p-2 font-semibold text-center bg-purple-400 border-r border-purple-500">Ret. (%)</th>
 
-                <th className="p-2 font-semibold text-center">Obs.</th>
+                <th className="p-2 font-semibold text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-[11px]">
               {filteredStock.length === 0 ? (
                 <tr>
-                  <td colSpan={23} className="p-8 text-center text-gray-400">Nenhum produto em estoque correspondente.</td>
+                  <td colSpan={24} className="p-8 text-center text-gray-400">Nenhum produto em estoque correspondente.</td>
                 </tr>
               ) : (
                 filteredStock.map((item) => (
                   <tr key={item.batchId} className="hover:bg-green-50 transition-colors group">
                     <td className="p-2 font-mono font-bold text-green-700 border-r border-gray-100">{item.batchId}</td>
-                    <td className="p-2 font-bold text-gray-800 border-r border-gray-100">{item.productName}</td>
+                    
+                    {/* Produto Column: In MO view, shows Physical Material. In Normal view, shows Product Name */}
+                    <td className="p-2 font-bold text-gray-800 border-r border-gray-100">
+                        {isMoView ? item.displayProductName : item.productName}
+                    </td>
+
+                    {/* MO ONLY: Editable Service Type Column */}
+                    {isMoView && (
+                        <td className="p-2 border-r border-gray-100">
+                            {onUpdateBatchService ? (
+                                <select 
+                                    className="bg-transparent border-b border-dashed border-gray-300 focus:border-blue-500 outline-none text-blue-800 font-bold w-full"
+                                    value={registeredServices.find(s => s.name === item.productName)?.id || ''}
+                                    onChange={(e) => onUpdateBatchService(item.batchId, e.target.value)}
+                                >
+                                    <option value="">{item.productName}</option>
+                                    {registeredServices.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <span>{item.productName}</span>
+                            )}
+                        </td>
+                    )}
+
                     <td className="p-2 font-mono text-gray-500 border-r border-gray-100">{item.productCode}</td>
                     <td className="p-2 text-gray-600 border-r border-gray-100">{item.supplier}</td>
                     <td className="p-2 text-center border-r border-gray-100">
@@ -377,7 +427,8 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                     <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.mesh35)}</td>
                     <td className="p-2 text-center border-r border-gray-100">{fmt(item.analysis.ret)}</td>
 
-                    <td className="p-2 text-center">
+                    {/* Actions */}
+                    <td className="p-2 text-center flex items-center justify-center gap-1">
                       {item.observations && (
                         <button 
                           onClick={() => setObsModal({ isOpen: true, text: item.observations, title: `Obs: ${item.productName} (${item.batchId})` })}
@@ -386,6 +437,15 @@ const CurrentStockTable: React.FC<CurrentStockTableProps> = ({ items, analyses }
                         >
                           <MessageSquareText size={14} />
                         </button>
+                      )}
+                      {onDeleteBatch && (
+                          <button
+                            onClick={() => onDeleteBatch(item.batchId)}
+                            className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded-full transition-colors no-print"
+                            title="Excluir Lote Inteiro"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                       )}
                     </td>
                   </tr>

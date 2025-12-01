@@ -168,6 +168,30 @@ function App() {
     setItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
   };
 
+  const handleDeleteBatch = (batchId: string) => {
+    if (confirm(`Tem certeza que deseja excluir TODO o histórico do lote ${batchId}? Esta ação é irreversível.`)) {
+        setItems(prev => prev.filter(item => item.batchId !== batchId));
+    }
+  };
+
+  const handleUpdateBatchService = (batchId: string, newServiceId: string) => {
+    const service = registeredServices.find(s => s.id === newServiceId);
+    if (!service) return;
+
+    if (confirm(`Alterar tipo de serviço para "${service.name}" em todo o lote ${batchId}?`)) {
+        setItems(prev => prev.map(item => {
+            if (item.batchId === batchId) {
+                return {
+                    ...item,
+                    productName: service.name,
+                    productCode: service.code
+                };
+            }
+            return item;
+        }));
+    }
+  };
+
   const getNextBatchSequence = (supplierCode: string) => {
     const supplierEntries = items.filter(i => i.supplierCode === supplierCode && !!i.entryDate);
     let maxSeq = 0;
@@ -744,8 +768,17 @@ function App() {
       
       // NEW SERVICE VIEWS
       case 'stock_mo':
-        // Service Stock (M.O. only)
-        return <CurrentStockTable items={items.filter(i => i.isService)} analyses={analyses} />;
+        // Service Stock (M.O. only) - Pass specific props for M.O.
+        return (
+            <CurrentStockTable 
+                items={items.filter(i => i.isService)} 
+                analyses={analyses}
+                isMoView={true}
+                registeredServices={registeredServices}
+                onDeleteBatch={handleDeleteBatch}
+                onUpdateBatchService={handleUpdateBatchService}
+            />
+        );
       case 'billing_mo':
         return <LaborBillingTable items={items.filter(i => i.isService)} onUpdateItem={handleUpdateItem} />;
       case 'services_registry':
