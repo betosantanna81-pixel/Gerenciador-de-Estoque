@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { InventoryItem, RegistryEntity, ProductEntity, ServiceEntity } from '../types';
-import { Save, AlertCircle, Briefcase, Package } from 'lucide-react';
+import { Save, AlertCircle, Briefcase, Package, Plus, Trash2 } from 'lucide-react';
 
 interface AvailableBatch {
   batchId: string;
@@ -35,7 +35,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
   registeredServices,
   onNavigateToRegistry
 }) => {
-  const [movementType, setMovementType] = useState<'entrada' | 'saída'>('entrada');
+  const [movementType, setMovementType] = useState<'entrada' | 'saída' | 'devolucao'>('entrada');
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [error, setError] = useState('');
   
@@ -48,6 +48,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
   
   // New Field: Material Type for M.O. Entry
   const [selectedMaterialTypeId, setSelectedMaterialTypeId] = useState('');
+
+  // Multi-item state for 'devolucao'
+  const [returnItems, setReturnItems] = useState<{batchId: string; quantity: string}[]>([{ batchId: '', quantity: '' }]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -65,7 +68,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
   // Filter batches based on isService
   const filteredAvailableBatches = availableBatches.filter(b => !!b.isService === isService);
 
-  // Logic to handle Batch Selection for "Saída"
+  // Logic to handle Batch Selection for "Saída" (Single Item)
   useEffect(() => {
     if (movementType === 'saída' && selectedBatchId) {
       const batch = availableBatches.find(b => b.batchId === selectedBatchId);
@@ -90,8 +93,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
   useEffect(() => {
     if (movementType === 'entrada') {
       if (formData.supplierCode.length === 3 && formData.productCode.length === 3) {
-        // We calculate sequence based on supplier and general entries, mixing services and products is usually fine for batch ID uniqueness
-        // or we can separate. Assuming shared batch sequence logic.
+        // We calculate sequence based on supplier and general entries
         const supplierEntries = existingItems.filter(i => i.supplierCode === formData.supplierCode && !!i.entryDate);
         
         let maxSeq = 0;
@@ -108,10 +110,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
       } else {
         setPreviewBatch('Requer códigos de 3 dígitos');
       }
+    } else if (movementType === 'devolucao') {
+        setPreviewBatch('Múltiplos Lotes');
     }
   }, [formData.supplierCode, formData.productCode, existingItems, movementType]);
 
-  const handleMovementTypeChange = (type: 'entrada' | 'saída') => {
+  const handleMovementTypeChange = (type: 'entrada' | 'saída' | 'devolucao') => {
     setMovementType(type);
     resetFields();
   };
@@ -122,6 +126,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
     setSelectedEntityId('');
     setSelectedItemId('');
     setSelectedMaterialTypeId('');
+    setReturnItems([{ batchId: '', quantity: '' }]);
     setFormData({
       date: new Date().toISOString().split('T')[0],
       supplier: '',
@@ -139,6 +144,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
     const id = e.target.value;
     setSelectedEntityId(id);
 
+    // For Devolucao/Saida, we use Clients list. For Entrada, Suppliers.
     const list = movementType === 'entrada' ? suppliers : clients;
     const entity = list.find(item => item.id === id);
 
@@ -190,6 +196,23 @@ const EntryForm: React.FC<EntryFormProps> = ({
     setError('');
   };
 
+  // Handlers for Multi-Item Devolucao
+  const handleAddReturnItem = () => {
+    setReturnItems(prev => [...prev, { batchId: '', quantity: '' }]);
+  };
+
+  const handleRemoveReturnItem = (index: number) => {
+    setReturnItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleReturnItemChange = (index: number, field: 'batchId' | 'quantity', value: string) => {
+    setReturnItems(prev => {
+        const newItems = [...prev];
+        newItems[index] = { ...newItems[index], [field]: value };
+        return newItems;
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -198,6 +221,53 @@ const EntryForm: React.FC<EntryFormProps> = ({
       setError(`Selecione um ${movementType === 'entrada' ? 'Fornecedor' : 'Cliente'} cadastrado.`);
       return;
     }
+
+    // --- DEVOLUÇÃO / MULTI-ITEM LOGIC ---
+    if (movementType === 'devolucao') {
+        const validItems = returnItems.filter(i => i.batchId && Number(i.quantity) > 0);
+        if (validItems.length === 0) {
+            setError('Adicione pelo menos um item para devolução.');
+            return;
+        }
+
+        // Validate quantities
+        for (const item of validItems) {
+            const batch = availableBatches.find(b => b.batchId === item.batchId);
+            if (!batch) {
+                setError(`Lote ${item.batchId} não encontrado.`);
+                return;
+            }
+            if (Number(item.quantity) > batch.remainingQuantity) {
+                setError(`Qtd indisponível para o lote ${item.batchId}. Disp: ${batch.remainingQuantity}`);
+                return;
+            }
+        }
+
+        // Process all items
+        validItems.forEach(item => {
+            const batch = availableBatches.find(b => b.batchId === item.batchId)!;
+            onAdd({
+                entryDate: '',
+                exitDate: formData.date,
+                supplier: formData.supplier, // Client Name
+                supplierCode: formData.supplierCode, // Client Code
+                productName: batch.productName,
+                productCode: batch.productCode,
+                quantity: Number(item.quantity),
+                unitCost: batch.unitCost,
+                unitPrice: 0,
+                batchId: item.batchId,
+                observations: `Devolução M.O. | ${formData.observations}`,
+                isService: true
+            });
+        });
+
+        resetFields();
+        alert("Devolução em massa registrada com sucesso!");
+        return;
+    }
+
+    // --- STANDARD LOGIC (Entrada / Saída Single) ---
 
     if (movementType === 'entrada') {
       if (!formData.productName || !formData.productCode) {
@@ -215,7 +285,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
       return;
     }
 
-    // Validation for Exit
+    // Validation for Single Exit
     if (movementType === 'saída') {
         if (!selectedBatchId) {
             setError('Selecione um lote para dar baixa.');
@@ -264,6 +334,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
   const disabledClass = "w-full p-3 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed";
   
   // Determine which list to show for entity
+  // Devolucao works like Saida (Client context)
   const activeEntityList = movementType === 'entrada' ? suppliers : clients;
   const activeEntityLabel = movementType === 'entrada' ? 'Fornecedor' : 'Cliente';
   const entityListEmpty = activeEntityList.length === 0;
@@ -313,6 +384,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         setIsService(e.target.checked);
                         setSelectedItemId('');
                         setSelectedMaterialTypeId(''); 
+                        // If unchecking, ensure we reset to a valid type if currently on Devolucao
+                        if (!e.target.checked && movementType === 'devolucao') {
+                            setMovementType('saída');
+                        }
                         setFormData(prev => ({...prev, productName: '', productCode: ''}));
                     }}
                     className="w-6 h-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
@@ -330,15 +405,16 @@ const EntryForm: React.FC<EntryFormProps> = ({
              <label className="block text-sm font-semibold text-gray-700 mb-1">Tipo de Movimentação</label>
              <select 
                 value={movementType} 
-                onChange={(e) => handleMovementTypeChange(e.target.value as 'entrada' | 'saída')}
+                onChange={(e) => handleMovementTypeChange(e.target.value as any)}
                 className={inputClass}
              >
                 <option value="entrada">Entrada (Compras)</option>
                 <option value="saída">Saída (Vendas/Cobrança)</option>
+                {isService && <option value="devolucao">Devolução de M.O.</option>}
              </select>
           </div>
 
-          {/* Special Field for Exit: Select Batch */}
+          {/* SINGLE EXIT: Select Batch */}
           {movementType === 'saída' && (
              <div className="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                 <label className="block text-sm font-bold text-yellow-800 mb-2">
@@ -360,11 +436,63 @@ const EntryForm: React.FC<EntryFormProps> = ({
              </div>
           )}
 
+          {/* MULTI DEVOLUCAO: Select Multiple Batches */}
+          {movementType === 'devolucao' && (
+             <div className="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-200 space-y-3">
+                <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-bold text-yellow-800">
+                        Baixar Estoque M.O. (Devolução em Massa):
+                    </label>
+                    <button 
+                        type="button" 
+                        onClick={handleAddReturnItem}
+                        className="text-xs font-bold text-yellow-800 flex items-center gap-1 hover:text-yellow-900 bg-yellow-100 px-2 py-1 rounded border border-yellow-300"
+                    >
+                        <Plus size={14} /> Adicionar Material
+                    </button>
+                </div>
+                
+                {returnItems.map((item, index) => (
+                    <div key={index} className="flex gap-2 items-center">
+                        <select 
+                            value={item.batchId} 
+                            onChange={(e) => handleReturnItemChange(index, 'batchId', e.target.value)}
+                            className="flex-1 p-2 border border-yellow-300 rounded focus:ring-2 focus:ring-yellow-500 outline-none bg-white text-gray-800 text-sm"
+                            required
+                        >
+                            <option value="">-- Selecione um lote --</option>
+                            {filteredAvailableBatches.map(batch => (
+                                <option key={batch.batchId} value={batch.batchId}>
+                                    {batch.supplier} - {batch.batchId} - {batch.productName} ({batch.remainingQuantity}kg)
+                                </option>
+                            ))}
+                        </select>
+                        <input 
+                            type="number"
+                            placeholder="Qtd"
+                            value={item.quantity}
+                            onChange={(e) => handleReturnItemChange(index, 'quantity', e.target.value)}
+                            className="w-24 p-2 border border-yellow-300 rounded focus:ring-2 focus:ring-yellow-500 outline-none bg-white text-gray-800 text-sm"
+                            required
+                        />
+                        <button 
+                            type="button"
+                            onClick={() => handleRemoveReturnItem(index)}
+                            disabled={returnItems.length === 1}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded disabled:opacity-50"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                ))}
+             </div>
+          )}
+
           {/* Supplier/Client Info */}
           <div className="md:col-span-2 border-t border-green-100 pt-4 mt-2">
              <h3 className="text-green-800 font-bold mb-4 flex items-center gap-2">
                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-               {movementType === 'saída' ? 'Dados do Cliente' : 'Dados do Fornecedor'}
+               {movementType === 'entrada' ? 'Dados do Fornecedor' : 'Dados do Cliente'}
              </h3>
           </div>
           
@@ -404,7 +532,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-                {movementType === 'saída' ? 'Cód. Cliente' : 'Cód. Fornecedor'}
+                {movementType === 'entrada' ? 'Cód. Fornecedor' : 'Cód. Cliente'}
             </label>
             <input 
                 type="text" 
@@ -416,122 +544,126 @@ const EntryForm: React.FC<EntryFormProps> = ({
             />
           </div>
 
-          {/* Product/Service Info */}
-          <div className="md:col-span-2 border-t border-green-100 pt-4 mt-2">
-             <h3 className="text-green-800 font-bold mb-4 flex items-center gap-2">
-               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-               {isService ? 'Dados do Serviço (M.O.)' : 'Dados do Produto'}
-             </h3>
-          </div>
+          {/* Product/Service Info - Hidden for Devolucao as it's determined by the multi-select batch list */}
+          {movementType !== 'devolucao' && (
+            <>
+                <div className="md:col-span-2 border-t border-green-100 pt-4 mt-2">
+                    <h3 className="text-green-800 font-bold mb-4 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    {isService ? 'Dados do Serviço (M.O.)' : 'Dados do Produto'}
+                    </h3>
+                </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-                {isService ? 'Selecione o Tipo de Serviço' : 'Selecione o Produto'}
-            </label>
-            {movementType === 'entrada' ? (
-                <>
-                    <select 
-                        value={selectedItemId}
-                        onChange={handleItemChange}
-                        className={inputClass}
-                        required
-                        disabled={itemListEmpty}
-                    >
-                        <option value="">-- Selecione na lista --</option>
-                        {itemList.map(item => (
-                            <option key={item.id} value={item.id}>
-                                {item.code} - {item.name}
-                            </option>
-                        ))}
-                    </select>
-                    {itemListEmpty && (
-                        <div className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                            <AlertCircle size={12}/>
-                            <span>Nenhum {isService ? 'serviço' : 'produto'} cadastrado.</span>
-                            <button 
-                                type="button"
-                                onClick={() => onNavigateToRegistry(isService ? 'services_registry' : 'products')}
-                                className="font-bold underline hover:text-red-800 ml-1"
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        {isService ? 'Selecione o Tipo de Serviço' : 'Selecione o Produto'}
+                    </label>
+                    {movementType === 'entrada' ? (
+                        <>
+                            <select 
+                                value={selectedItemId}
+                                onChange={handleItemChange}
+                                className={inputClass}
+                                required
+                                disabled={itemListEmpty}
                             >
-                                Cadastrar Novo
-                            </button>
-                        </div>
+                                <option value="">-- Selecione na lista --</option>
+                                {itemList.map(item => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.code} - {item.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {itemListEmpty && (
+                                <div className="mt-2 text-xs text-red-600 flex items-center gap-1">
+                                    <AlertCircle size={12}/>
+                                    <span>Nenhum {isService ? 'serviço' : 'produto'} cadastrado.</span>
+                                    <button 
+                                        type="button"
+                                        onClick={() => onNavigateToRegistry(isService ? 'services_registry' : 'products')}
+                                        className="font-bold underline hover:text-red-800 ml-1"
+                                    >
+                                        Cadastrar Novo
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        // For Exit (Single), product is determined by batch
+                        <input 
+                            type="text" 
+                            value={formData.productName} 
+                            readOnly 
+                            className={disabledClass}
+                            placeholder="Selecionado via Lote"
+                        />
                     )}
-                </>
-            ) : (
-                // For Exit, product is determined by batch
-                <input 
-                    type="text" 
-                    value={formData.productName} 
-                    readOnly 
-                    className={disabledClass}
-                    placeholder="Selecionado via Lote"
-                />
-            )}
-          </div>
+                </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-                {isService ? 'Cód. Serviço (3 dígitos)' : 'Cód. Produto (3 dígitos)'}
-            </label>
-            <input 
-                type="text" 
-                name="productCode" 
-                value={formData.productCode} 
-                readOnly
-                className={`${disabledClass} font-mono font-bold`} 
-                placeholder="Automático" 
-            />
-          </div>
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        {isService ? 'Cód. Serviço (3 dígitos)' : 'Cód. Produto (3 dígitos)'}
+                    </label>
+                    <input 
+                        type="text" 
+                        name="productCode" 
+                        value={formData.productCode} 
+                        readOnly
+                        className={`${disabledClass} font-mono font-bold`} 
+                        placeholder="Automático" 
+                    />
+                </div>
 
-          {/* Material Type Selection for M.O. Entries */}
-          {isService && movementType === 'entrada' && (
-            <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                    <Package size={16} />
-                    Tipo de Material (Entrada de M.O.)
-                </label>
-                <select 
-                    value={selectedMaterialTypeId}
-                    onChange={(e) => setSelectedMaterialTypeId(e.target.value)}
-                    className={inputClass}
-                >
-                    <option value="">-- Selecione o Material Físico (Opcional) --</option>
-                    {registeredProducts.map(p => (
-                        <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
-                    ))}
-                </select>
-            </div>
+                {/* Material Type Selection for M.O. Entries */}
+                {isService && movementType === 'entrada' && (
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+                            <Package size={16} />
+                            Tipo de Material (Entrada de M.O.)
+                        </label>
+                        <select 
+                            value={selectedMaterialTypeId}
+                            onChange={(e) => setSelectedMaterialTypeId(e.target.value)}
+                            className={inputClass}
+                        >
+                            <option value="">-- Selecione o Material Físico (Opcional) --</option>
+                            {registeredProducts.map(p => (
+                                <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+                
+                <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Quantidade ({isService ? 'Horas/Un' : 'Kg'})</label>
+                        <input 
+                            type="number" 
+                            name="quantity" 
+                            value={formData.quantity} 
+                            onChange={handleChange} 
+                            required 
+                            min="0.001" 
+                            step="any"
+                            className={inputClass} 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Valor Unitário</label>
+                        <input 
+                            type="number" 
+                            name="unitCost" 
+                            value={formData.unitCost} 
+                            onChange={handleChange} 
+                            required 
+                            min="0" 
+                            step="0.01" 
+                            className={inputClass} 
+                        />
+                    </div>
+                </div>
+            </>
           )}
-          
-          <div className="md:col-span-2 grid grid-cols-2 gap-4">
-             <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Quantidade ({isService ? 'Horas/Un' : 'Kg'})</label>
-                <input 
-                    type="number" 
-                    name="quantity" 
-                    value={formData.quantity} 
-                    onChange={handleChange} 
-                    required 
-                    min="0.001" 
-                    step="any"
-                    className={inputClass} 
-                />
-             </div>
-             <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Valor Unitário</label>
-                <input 
-                    type="number" 
-                    name="unitCost" 
-                    value={formData.unitCost} 
-                    onChange={handleChange} 
-                    required 
-                    min="0" 
-                    step="0.01" 
-                    className={inputClass} 
-                />
-             </div>
-          </div>
 
           {/* Observations */}
           <div className="md:col-span-2">

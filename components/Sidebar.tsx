@@ -21,7 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
 
   // Helper to determine if a parent section should be highlighted based on current view
   const isEstoqueActive = ['stock', 'stock_mo', 'list', 'production_orders'].includes(currentView);
-  const isLancamentosActive = ['entry', 'processes', 'analysis'].includes(currentView);
+  const isLancamentosActive = ['entry', 'processes', 'analysis', 'mo_return'].includes(currentView);
   const isCadastrosActive = ['suppliers', 'clients', 'products', 'services_registry', 'operations'].includes(currentView);
   const isFinanceiroActive = ['billing_mo'].includes(currentView);
 
@@ -137,6 +137,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onExport, onImp
                 <SubMenuItem label="Movimentação" active={currentView === 'entry'} onClick={() => setView('entry')} />
                 <SubMenuItem label="Novo Processo" active={currentView === 'processes'} onClick={() => setView('processes')} />
                 <SubMenuItem label="Análises" active={currentView === 'analysis'} onClick={() => setView('analysis')} />
+                <SubMenuItem label="Devolução M.O." active={currentView === 'mo_return'} onClick={() => setView('mo_return')} />
              </div>
         </div>
 

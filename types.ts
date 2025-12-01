@@ -105,7 +105,7 @@ export interface ProductionOrder {
   loss: number;
 }
 
-export type ViewState = 'dashboard' | 'entry' | 'list' | 'stock' | 'settings' | 'suppliers' | 'clients' | 'products' | 'operations' | 'analysis' | 'processes' | 'production_orders' | 'stock_mo' | 'billing_mo' | 'services_registry';
+export type ViewState = 'dashboard' | 'entry' | 'list' | 'stock' | 'settings' | 'suppliers' | 'clients' | 'products' | 'operations' | 'analysis' | 'processes' | 'production_orders' | 'stock_mo' | 'billing_mo' | 'services_registry' | 'mo_return';
 
 export interface DashboardStats {
   totalStock: number;

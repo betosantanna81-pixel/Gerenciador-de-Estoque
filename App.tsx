@@ -12,6 +12,7 @@ import ServiceRegistry from './components/ServiceRegistry';
 import ProcessForm from './components/ProcessForm';
 import ProductionOrdersTable from './components/ProductionOrdersTable';
 import LaborBillingTable from './components/LaborBillingTable';
+import MoReturnForm from './components/MoReturnForm';
 import { InventoryItem, ViewState, ProductAnalysis, RegistryEntity, ProductEntity, ProductionOrder, ServiceEntity } from './types';
 import * as XLSX from 'xlsx';
 
@@ -184,6 +185,34 @@ function App() {
     if (confirm('Tem certeza que deseja excluir este item?')) {
       setItems(prev => prev.filter(item => item.id !== id));
     }
+  };
+
+  // Handle M.O. Return Logic
+  const handleSaveMoReturn = (date: string, returns: { batchId: string; quantity: number }[]) => {
+    const newItems: InventoryItem[] = [];
+    
+    returns.forEach(ret => {
+      const batchData = batchesWithStock.find(b => b.batchId === ret.batchId);
+      if (batchData) {
+        newItems.push({
+          id: crypto.randomUUID(),
+          batchId: ret.batchId,
+          productName: batchData.productName,
+          productCode: batchData.productCode,
+          supplier: batchData.supplier,
+          supplierCode: batchData.supplierCode,
+          entryDate: '',
+          exitDate: date,
+          quantity: ret.quantity,
+          unitCost: batchData.unitCost,
+          unitPrice: 0,
+          isService: true,
+          observations: 'Devolução de M.O. (Baixa em Massa)'
+        });
+      }
+    });
+
+    setItems(prev => [...prev, ...newItems]);
   };
 
   // Logic to process an order
@@ -742,6 +771,17 @@ function App() {
         );
       case 'production_orders':
         return <ProductionOrdersTable orders={productionOrders} />;
+      
+      // NEW: MO Return View
+      case 'mo_return':
+        return (
+          <MoReturnForm 
+            availableBatches={batchesWithStock.filter(b => b.isService)}
+            clients={clients}
+            onSave={handleSaveMoReturn}
+          />
+        );
+
       default:
         return (
             <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
