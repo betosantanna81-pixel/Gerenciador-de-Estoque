@@ -14,15 +14,18 @@ const LaborBillingTable: React.FC<LaborBillingTableProps> = ({ items, onUpdateIt
   const [editValue, setEditValue] = useState('');
 
   // Filter for exits only (Billing implies charging out)
+  // Also EXCLUDE "Devolução" (Returns) as they shouldn't be billed.
   const billingItems = useMemo(() => {
     return items.filter(item => {
       const isExit = !!item.exitDate && !item.entryDate;
+      const isReturn = item.observations?.toLowerCase().includes('devolução');
+      
       const matchesSearch = 
         item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.batchId.toLowerCase().includes(searchTerm.toLowerCase());
       
-      return isExit && matchesSearch;
+      return isExit && !isReturn && matchesSearch;
     }).sort((a,b) => new Date(b.exitDate).getTime() - new Date(a.exitDate).getTime());
   }, [items, searchTerm]);
 

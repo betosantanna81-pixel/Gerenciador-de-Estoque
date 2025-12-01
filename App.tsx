@@ -242,6 +242,8 @@ function App() {
   // Logic to process an order
   const handleSaveProcess = (orderData: Omit<ProductionOrder, 'id'>) => {
     // 1. Create Exit for Source Material
+    // IMPORTANT: Treat source consumption as PRODUCT usage (isService: false), even if source was M.O.
+    // This prevents the consumption from looking like a billable service output.
     const sourceExit: InventoryItem = {
         id: crypto.randomUUID(),
         batchId: orderData.sourceBatchId,
@@ -255,7 +257,7 @@ function App() {
         unitCost: 0, // Cost tracked on entry, not strictly needed on exit for simple stock
         unitPrice: 0,
         observations: `Processamento - Gerou O.P.`,
-        isService: orderData.sourceIsService // Respect source type
+        isService: false // FORCE FALSE as requested: "não deve ser considerado no Estoque de MO como tipo de Serviço"
     };
 
     // 2. Create Entries for Outputs
