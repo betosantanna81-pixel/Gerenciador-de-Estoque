@@ -36,7 +36,6 @@ const EntryForm: React.FC<EntryFormProps> = ({
   onNavigateToRegistry
 }) => {
   const [movementType, setMovementType] = useState<'entrada' | 'saída' | 'devolucao'>('entrada');
-  const [selectedBatchId, setSelectedBatchId] = useState('');
   const [error, setError] = useState('');
   
   // M.O. Flag
@@ -49,8 +48,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
   // New Field: Material Type for M.O. Entry
   const [selectedMaterialTypeId, setSelectedMaterialTypeId] = useState('');
 
-  // Multi-item state for 'devolucao'
-  const [returnItems, setReturnItems] = useState<{batchId: string; quantity: string}[]>([{ batchId: '', quantity: '' }]);
+  // Multi-item state for 'devolucao' AND 'saída'
+  const [exitItems, setExitItems] = useState<{batchId: string; quantity: string}[]>([{ batchId: '', quantity: '' }]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -67,27 +66,6 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
   // Filter batches based on isService
   const filteredAvailableBatches = availableBatches.filter(b => !!b.isService === isService);
-
-  // Logic to handle Batch Selection for "Saída" (Single Item)
-  useEffect(() => {
-    if (movementType === 'saída' && selectedBatchId) {
-      const batch = availableBatches.find(b => b.batchId === selectedBatchId);
-      if (batch) {
-        setFormData(prev => ({
-          ...prev,
-          productName: batch.productName,
-          productCode: batch.productCode,
-          unitCost: batch.unitCost, 
-          quantity: 0
-        }));
-        setPreviewBatch(batch.batchId);
-        // Sync the service checkbox with the selected batch
-        setIsService(!!batch.isService);
-      }
-    } else if (movementType === 'entrada') {
-      // Reset logic for entry handled elsewhere
-    }
-  }, [selectedBatchId, movementType, availableBatches]);
 
   // Logic to generate preview for "Entrada"
   useEffect(() => {
@@ -110,7 +88,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
       } else {
         setPreviewBatch('Requer códigos de 3 dígitos');
       }
-    } else if (movementType === 'devolucao') {
+    } else if (movementType === 'devolucao' || movementType === 'saída') {
         setPreviewBatch('Múltiplos Lotes');
     }
   }, [formData.supplierCode, formData.productCode, existingItems, movementType]);
@@ -122,11 +100,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
   const resetFields = () => {
     setError('');
-    setSelectedBatchId('');
     setSelectedEntityId('');
     setSelectedItemId('');
     setSelectedMaterialTypeId('');
-    setReturnItems([{ batchId: '', quantity: '' }]);
+    setExitItems([{ batchId: '', quantity: '' }]);
     setFormData({
       date: new Date().toISOString().split('T')[0],
       supplier: '',
@@ -196,17 +173,17 @@ const EntryForm: React.FC<EntryFormProps> = ({
     setError('');
   };
 
-  // Handlers for Multi-Item Devolucao
-  const handleAddReturnItem = () => {
-    setReturnItems(prev => [...prev, { batchId: '', quantity: '' }]);
+  // Handlers for Multi-Item Exit/Devolucao
+  const handleAddExitItem = () => {
+    setExitItems(prev => [...prev, { batchId: '', quantity: '' }]);
   };
 
-  const handleRemoveReturnItem = (index: number) => {
-    setReturnItems(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveExitItem = (index: number) => {
+    setExitItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleReturnItemChange = (index: number, field: 'batchId' | 'quantity', value: string) => {
-    setReturnItems(prev => {
+  const handleExitItemChange = (index: number, field: 'batchId' | 'quantity', value: string) => {
+    setExitItems(prev => {
         const newItems = [...prev];
         newItems[index] = { ...newItems[index], [field]: value };
         return newItems;
@@ -222,11 +199,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
       return;
     }
 
-    // --- DEVOLUÇÃO / MULTI-ITEM LOGIC ---
-    if (movementType === 'devolucao') {
-        const validItems = returnItems.filter(i => i.batchId && Number(i.quantity) > 0);
+    // --- SAIDA / DEVOLUÇÃO (MULTI-ITEM LOGIC) ---
+    if (movementType === 'saída' || movementType === 'devolucao') {
+        const validItems = exitItems.filter(i => i.batchId && Number(i.quantity) > 0);
         if (validItems.length === 0) {
-            setError('Adicione pelo menos um item para devolução.');
+            setError('Adicione pelo menos um item para baixar/devolver.');
             return;
         }
 
@@ -257,17 +234,19 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 unitCost: batch.unitCost,
                 unitPrice: 0,
                 batchId: item.batchId,
-                observations: `Devolução M.O. | ${formData.observations}`,
-                isService: true
+                observations: movementType === 'devolucao' 
+                    ? `Devolução M.O. | ${formData.observations}` 
+                    : formData.observations,
+                isService: isService // Respect current mode (could be product or service exit)
             });
         });
 
         resetFields();
-        alert("Devolução em massa registrada com sucesso!");
+        alert("Movimentação em massa registrada com sucesso!");
         return;
     }
 
-    // --- STANDARD LOGIC (Entrada / Saída Single) ---
+    // --- ENTRADA (SINGLE ITEM LOGIC) ---
 
     if (movementType === 'entrada') {
       if (!formData.productName || !formData.productCode) {
@@ -278,56 +257,42 @@ const EntryForm: React.FC<EntryFormProps> = ({
         setError('Os códigos devem ter exatamente 3 dígitos.');
         return;
       }
+      if (formData.quantity <= 0) {
+        setError('A quantidade deve ser maior que zero.');
+        return;
+      }
+
+      // Prepare observations: Append Material Type if M.O. Entry
+      let finalObservations = formData.observations;
+      if (isService && selectedMaterialTypeId) {
+          const material = registeredProducts.find(p => p.id === selectedMaterialTypeId);
+          if (material) {
+              const matInfo = `Material Físico: ${material.name}`;
+              finalObservations = finalObservations 
+                  ? `${matInfo} | ${finalObservations}` 
+                  : matInfo;
+          }
+      }
+
+      onAdd({
+        entryDate: formData.date,
+        exitDate: '',
+        supplier: formData.supplier,
+        supplierCode: formData.supplierCode,
+        productName: formData.productName,
+        productCode: formData.productCode,
+        quantity: Number(formData.quantity),
+        unitCost: Number(formData.unitCost),
+        unitPrice: 0, 
+        batchId: '', 
+        observations: finalObservations,
+        isService: isService 
+      });
+
+      // Reset form
+      resetFields();
+      alert("Entrada registrada com sucesso!");
     }
-
-    if (!formData.supplier || !formData.productName || formData.quantity <= 0) {
-      setError('Preencha todos os campos obrigatórios corretamente.');
-      return;
-    }
-
-    // Validation for Single Exit
-    if (movementType === 'saída') {
-        if (!selectedBatchId) {
-            setError('Selecione um lote para dar baixa.');
-            return;
-        }
-        const batch = availableBatches.find(b => b.batchId === selectedBatchId);
-        if (batch && Number(formData.quantity) > batch.remainingQuantity) {
-            setError(`Quantidade indisponível. O lote possui apenas ${batch.remainingQuantity} Kg.`);
-            return;
-        }
-    }
-
-    // Prepare observations: Append Material Type if M.O. Entry
-    let finalObservations = formData.observations;
-    if (movementType === 'entrada' && isService && selectedMaterialTypeId) {
-        const material = registeredProducts.find(p => p.id === selectedMaterialTypeId);
-        if (material) {
-            const matInfo = `Material Físico: ${material.name}`;
-            finalObservations = finalObservations 
-                ? `${matInfo} | ${finalObservations}` 
-                : matInfo;
-        }
-    }
-
-    onAdd({
-      entryDate: movementType === 'entrada' ? formData.date : '',
-      exitDate: movementType === 'saída' ? formData.date : '',
-      supplier: formData.supplier,
-      supplierCode: formData.supplierCode,
-      productName: formData.productName,
-      productCode: formData.productCode,
-      quantity: Number(formData.quantity),
-      unitCost: Number(formData.unitCost),
-      unitPrice: 0, 
-      batchId: movementType === 'saída' ? selectedBatchId : '', 
-      observations: finalObservations,
-      isService: isService // Pass the flag
-    });
-
-    // Reset form
-    resetFields();
-    alert("Movimentação registrada com sucesso!");
   };
 
   const inputClass = "w-full p-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition bg-green-50 text-gray-800 placeholder-gray-500";
@@ -350,7 +315,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
           <h2 className="text-2xl font-bold">Nova Movimentação</h2>
           <div className="text-right">
              <p className="text-xs text-green-300 uppercase">
-                {movementType === 'entrada' ? 'Lote Previsto' : 'Lote Selecionado'}
+                {movementType === 'entrada' ? 'Lote Previsto' : 'Seleção'}
              </p>
              <p className="text-xl font-mono font-bold tracking-widest">{previewBatch}</p>
           </div>
@@ -414,49 +379,27 @@ const EntryForm: React.FC<EntryFormProps> = ({
              </select>
           </div>
 
-          {/* SINGLE EXIT: Select Batch */}
-          {movementType === 'saída' && (
-             <div className="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <label className="block text-sm font-bold text-yellow-800 mb-2">
-                    {isService ? 'Baixar Estoque M.O. (Selecionar Lote):' : 'Baixar Estoque (Selecionar Lote):'}
-                </label>
-                <select 
-                    value={selectedBatchId} 
-                    onChange={(e) => setSelectedBatchId(e.target.value)}
-                    className="w-full p-3 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none bg-white text-gray-800"
-                    required
-                >
-                    <option value="">-- Selecione um lote disponível --</option>
-                    {filteredAvailableBatches.map(batch => (
-                        <option key={batch.batchId} value={batch.batchId}>
-                            {batch.supplier} - {batch.batchId} - {batch.productName} (Disp: {batch.remainingQuantity})
-                        </option>
-                    ))}
-                </select>
-             </div>
-          )}
-
-          {/* MULTI DEVOLUCAO: Select Multiple Batches */}
-          {movementType === 'devolucao' && (
+          {/* MULTI ITEM SELECTION FOR SAIDA AND DEVOLUCAO */}
+          {(movementType === 'saída' || movementType === 'devolucao') && (
              <div className="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-200 space-y-3">
                 <div className="flex justify-between items-center mb-2">
                     <label className="block text-sm font-bold text-yellow-800">
-                        Baixar Estoque M.O. (Devolução em Massa):
+                        {movementType === 'saída' ? 'Baixar Estoque (Saída em Massa):' : 'Baixar Estoque M.O. (Devolução em Massa):'}
                     </label>
                     <button 
                         type="button" 
-                        onClick={handleAddReturnItem}
+                        onClick={handleAddExitItem}
                         className="text-xs font-bold text-yellow-800 flex items-center gap-1 hover:text-yellow-900 bg-yellow-100 px-2 py-1 rounded border border-yellow-300"
                     >
                         <Plus size={14} /> Adicionar Material
                     </button>
                 </div>
                 
-                {returnItems.map((item, index) => (
+                {exitItems.map((item, index) => (
                     <div key={index} className="flex gap-2 items-center">
                         <select 
                             value={item.batchId} 
-                            onChange={(e) => handleReturnItemChange(index, 'batchId', e.target.value)}
+                            onChange={(e) => handleExitItemChange(index, 'batchId', e.target.value)}
                             className="flex-1 p-2 border border-yellow-300 rounded focus:ring-2 focus:ring-yellow-500 outline-none bg-white text-gray-800 text-sm"
                             required
                         >
@@ -471,14 +414,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             type="number"
                             placeholder="Qtd"
                             value={item.quantity}
-                            onChange={(e) => handleReturnItemChange(index, 'quantity', e.target.value)}
+                            onChange={(e) => handleExitItemChange(index, 'quantity', e.target.value)}
                             className="w-24 p-2 border border-yellow-300 rounded focus:ring-2 focus:ring-yellow-500 outline-none bg-white text-gray-800 text-sm"
                             required
                         />
                         <button 
                             type="button"
-                            onClick={() => handleRemoveReturnItem(index)}
-                            disabled={returnItems.length === 1}
+                            onClick={() => handleRemoveExitItem(index)}
+                            disabled={exitItems.length === 1}
                             className="p-2 text-red-500 hover:bg-red-50 rounded disabled:opacity-50"
                         >
                             <Trash2 size={16} />
@@ -544,8 +487,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
             />
           </div>
 
-          {/* Product/Service Info - Hidden for Devolucao as it's determined by the multi-select batch list */}
-          {movementType !== 'devolucao' && (
+          {/* Product/Service Info - Hidden for Saida/Devolucao as it's determined by the multi-select batch list */}
+          {movementType === 'entrada' && (
             <>
                 <div className="md:col-span-2 border-t border-green-100 pt-4 mt-2">
                     <h3 className="text-green-800 font-bold mb-4 flex items-center gap-2">
@@ -558,45 +501,32 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     <label className="block text-sm font-semibold text-gray-700 mb-1">
                         {isService ? 'Selecione o Tipo de Serviço' : 'Selecione o Produto'}
                     </label>
-                    {movementType === 'entrada' ? (
-                        <>
-                            <select 
-                                value={selectedItemId}
-                                onChange={handleItemChange}
-                                className={inputClass}
-                                required
-                                disabled={itemListEmpty}
+                    <select 
+                        value={selectedItemId}
+                        onChange={handleItemChange}
+                        className={inputClass}
+                        required
+                        disabled={itemListEmpty}
+                    >
+                        <option value="">-- Selecione na lista --</option>
+                        {itemList.map(item => (
+                            <option key={item.id} value={item.id}>
+                                {item.code} - {item.name}
+                            </option>
+                        ))}
+                    </select>
+                    {itemListEmpty && (
+                        <div className="mt-2 text-xs text-red-600 flex items-center gap-1">
+                            <AlertCircle size={12}/>
+                            <span>Nenhum {isService ? 'serviço' : 'produto'} cadastrado.</span>
+                            <button 
+                                type="button"
+                                onClick={() => onNavigateToRegistry(isService ? 'services_registry' : 'products')}
+                                className="font-bold underline hover:text-red-800 ml-1"
                             >
-                                <option value="">-- Selecione na lista --</option>
-                                {itemList.map(item => (
-                                    <option key={item.id} value={item.id}>
-                                        {item.code} - {item.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {itemListEmpty && (
-                                <div className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                                    <AlertCircle size={12}/>
-                                    <span>Nenhum {isService ? 'serviço' : 'produto'} cadastrado.</span>
-                                    <button 
-                                        type="button"
-                                        onClick={() => onNavigateToRegistry(isService ? 'services_registry' : 'products')}
-                                        className="font-bold underline hover:text-red-800 ml-1"
-                                    >
-                                        Cadastrar Novo
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        // For Exit (Single), product is determined by batch
-                        <input 
-                            type="text" 
-                            value={formData.productName} 
-                            readOnly 
-                            className={disabledClass}
-                            placeholder="Selecionado via Lote"
-                        />
+                                Cadastrar Novo
+                            </button>
+                        </div>
                     )}
                 </div>
 
@@ -615,7 +545,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 </div>
 
                 {/* Material Type Selection for M.O. Entries */}
-                {isService && movementType === 'entrada' && (
+                {isService && (
                     <div className="md:col-span-2">
                         <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
                             <Package size={16} />
